@@ -83,9 +83,10 @@ log_every_n_steps: 1
 log_peak_memory_stats: True
 log_level: INFO  # DEBUG, WARN, etc.
 
-lr_scheduler:
-    _component_: torchtune.training.lr_schedulers.get_cosine_schedule_with_warmup
-    num_warmup_steps: 6250 # 10% of training
+#lr_scheduler:
+#    _component_: torchtune.training.lr_schedulers.get_cosine_schedule_with_warmup
+#    num_warmup_steps: 6250 # 10% of training
+
 loss:
     _component_: torchtune.modules.loss.LinearCrossEntropyLoss
 
