@@ -18,7 +18,7 @@
 # best to use 8B_full_single_device.yaml for those cases
 
 
-output_dir: /data/imodoranu/results/torchtune/Llama3.1-8B-Instruct/full_distributed/${optimizer._component_}/lr=${optimizer.lr}
+output_dir: /data/imodoranu/results/torchtune/Llama3.1-8B-Instruct/full_distributed/${optimizer.name}/lr=${optimizer.${optimizer.name}.lr}
 
 seed: 42
 shuffle: True
