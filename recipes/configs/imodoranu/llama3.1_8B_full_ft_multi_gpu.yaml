@@ -75,14 +75,17 @@ metric_logger:
     _component_: torchtune.training.metric_logging.WandBLogger
     project: ionut_torchtune_llama3.1-8B_full_ft_multi_gpu
     entity: ionutmodo
-    group: ${optimizer._component_}_batch-size=${batch_size}
-    job_type: lr=${optimizer.lr}
+    group: ${optimizer.name}_batch-size=${batch_size}_split=${dataset.split}
+    job_type: lr=${optimizer.${optimizer.name}.lr}
     name: seed=${seed}
     log_dir: ${output_dir}/logs
 log_every_n_steps: 1
 log_peak_memory_stats: True
 log_level: INFO  # DEBUG, WARN, etc.
 
+lr_scheduler:
+    _component_: torchtune.training.lr_schedulers.get_cosine_schedule_with_warmup
+    num_warmup_steps: 6250 # 10% of training
 loss:
     _component_: torchtune.modules.loss.LinearCrossEntropyLoss
 
@@ -121,7 +124,7 @@ tokenizer:
 dataset:
     _component_: torchtune.datasets.open_math_instruct_2_dataset
     packed: False  # True increases speed
-    split: train_1M
+    split: train_1M[:1%]
     column_map:
         input: problem
         output: generated_solution
