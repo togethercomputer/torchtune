@@ -23,6 +23,7 @@ from torchtune.datasets._text_completion import (
     TextCompletionDataset,
 )
 from torchtune.datasets._wikitext import wikitext_dataset
+from torchtune.datasets._open_math_instruct_2 import open_math_instruct_2_dataset
 
 __all__ = [
     "alpaca_dataset",
@@ -44,4 +45,6 @@ __all__ = [
     "SFTDataset",
     "hh_rlhf_helpful_dataset",
     "multimodal",
+
+    "open_math_instruct_2_dataset",
 ]
