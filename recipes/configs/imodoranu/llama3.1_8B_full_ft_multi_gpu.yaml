@@ -20,16 +20,10 @@
 
 output_dir: /data/imodoranu/results/torchtune/Llama3.1-8B-Instruct/full_distributed
 
-
 seed: 42
 shuffle: True
-
 resume_from_checkpoint: False
-
-# Reduced precision
 dtype: bf16
-
-# Fine-tuning arguments
 batch_size: 2
 epochs: 1
 max_steps_per_epoch: null
@@ -37,6 +31,10 @@ clip_grad_norm: null
 compile: False  # torch.compile the model + loss, True increases speed + decreases memory
 optimizer_in_bwd: False  # True saves memory. Requires gradient_accumulation_steps=1
 gradient_accumulation_steps: 1  # Use to increase effective batch size
+device: cuda
+enable_activation_checkpointing: True  # True reduces memory
+enable_activation_offloading: False  # True reduces memory
+custom_sharded_layers: ['tok_embeddings', 'output']  # Layers to shard separately (useful for large vocab size models). Lower Memory, but lower speed.
 
 #optimizer: # AdamW
 #    _component_: torch.optim.AdamW
@@ -59,14 +57,6 @@ optimizer: # FrugalMicroAdamW
 
 loss:
     _component_: torchtune.modules.loss.LinearCrossEntropyLoss
-
-# Training env
-device: cuda
-
-# Memory management
-enable_activation_checkpointing: True  # True reduces memory
-enable_activation_offloading: False  # True reduces memory
-custom_sharded_layers: ['tok_embeddings', 'output']  # Layers to shard separately (useful for large vocab size models). Lower Memory, but lower speed.
 
 # Profiler (disabled)
 profiler:
