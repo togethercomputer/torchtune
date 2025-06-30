@@ -3,3 +3,4 @@ torchvision
 torchao
 bitsandbytes
 gpustat
+wandb
