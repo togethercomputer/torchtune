@@ -35,6 +35,17 @@ from torchtune.training.lr_schedulers import get_lr
 
 from tqdm import tqdm
 
+def print_model_architecture(model, file, exit666=False):
+    with open(file, 'w') as w:
+        for i, (name, p) in enumerate(model.named_parameters()):
+            w.write(f'{i=}\n')
+            w.write(f'\t{name=}\n')
+            w.write(f'\t{p.numel()=:_}\n')
+            w.write(f'\t{p.shape=}\n')
+            w.write(f'\t{p.requires_grad=}\n')
+    if exit666:
+        print(f'\nProgram ended in print_model_architecture')
+        sys.exit(666)
 
 class FullFinetuneRecipeSingleDevice(FTRecipeInterface):
     """
@@ -264,6 +275,7 @@ class FullFinetuneRecipeSingleDevice(FTRecipeInterface):
             compile_model=self._compile,
             model_state_dict=ckpt_dict[training.MODEL_KEY],
         )
+        # print_model_architecture(self._model, file=f'/home/imodoranu/workplace/architectures/Llama3.1-8B-Instruct.txt', exit666=True)
         self._tokenizer = config.instantiate(cfg.tokenizer)
         self._logger.info("Tokenizer is initialized from file.")
 
