@@ -46,14 +46,42 @@ custom_sharded_layers: ['tok_embeddings', 'output']  # Layers to shard separatel
 #    eps: 1e-8
 #    fused: True
 
-optimizer: # FrugalMicroAdamW
-    _component_: FrugalMicroAdamW
+optimizer: # FrugalMicroAdam
+    _component_: memory_efficient_optimizers.FrugalMicroAdam
     lr: 2e-5
     weight_decay: 0
     betas:
         - 0.9
         - 0.999
     eps: 1e-8
+    num_grads: 10
+    density: 0.01
+    normalization: none
+
+#optimizer: # CustomEmaAdamW
+#    _component_: memory_efficient_optimizers.CustomEmaAdamW
+#    lr: 2e-5
+#    weight_decay: 0
+#    betas:
+#        - 0.9
+#        - 0.999
+#    eps: 1e-8
+#    ema_schedule: delayed
+#    ema_decay: 10
+#    ema_alpha: 0
+
+# Logging
+metric_logger:
+    _component_: torchtune.training.metric_logging.WandBLogger
+    project: ionut_torchtune_llama3.1-8B_full_ft_multi_gpu
+    entity: ionutmodo
+    group: ${optimizer._component_}_batch-size=${batch_size}
+    job_type: lr=${optimizer.lr}
+    name: seed=${seed}
+    log_dir: ${output_dir}/logs
+log_every_n_steps: 1
+log_peak_memory_stats: True
+log_level: INFO  # DEBUG, WARN, etc.
 
 loss:
     _component_: torchtune.modules.loss.LinearCrossEntropyLoss
@@ -104,19 +132,6 @@ dataset:
 #    _component_: torchtune.datasets.alpaca_cleaned_dataset
 #    split: train[95%:]
 #batch_size_val: ${batch_size}
-
-# Logging
-metric_logger:
-    _component_: torchtune.training.metric_logging.WandBLogger
-    project: ionut_torchtune_llama3.1-8B_full_ft_multi_gpu
-    entity: ionutmodo
-    group: AdamW_batch-size=${batch_size}
-    job_type: lr=${optimizer.lr}
-    name: seed=${seed}
-    log_dir: ${output_dir}/logs
-log_every_n_steps: 1
-log_peak_memory_stats: True
-log_level: INFO  # DEBUG, WARN, etc.
 
 # Model Arguments
 model:
