@@ -1,26 +1,24 @@
-# Config for single device full finetuning in full_finetune_single_device.py
+# Config for multi-device full finetuning in full_finetune_distributed.py
 # using a Llama3.1 8B Instruct model
 #
 # This config assumes that you've run the following command before launching
 # this run:
 #   tune download meta-llama/Meta-Llama-3.1-8B-Instruct --output-dir /tmp/Meta-Llama-3.1-8B-Instruct --ignore-patterns "original/consolidated.00.pth"
 #
-# The default config uses an optimizer from bitsandbytes. If you do not have it installed,
-# you can install it with
-#   pip install bitsandbytes
-#
-# To launch on a single device, run the following command from root:
-#   tune run full_finetune_single_device --config llama3_1/8B_full_single_device
+# To launch on 4 devices, run the following command from root:
+#   tune run --nproc_per_node 4 full_finetune_distributed --config llama3_1/8B_full
 #
 # You can add specific overrides through the command line. For example
 # to override the checkpointer directory while launching training
 # you can run:
-#   tune run full_finetune_single_device --config llama3_1/8B_full_single_device checkpointer.checkpoint_dir=<YOUR_CHECKPOINT_DIR>
+#   tune run --nproc_per_node 4 full_finetune_distributed --config llama3_1/8B_full checkpointer.checkpoint_dir=<YOUR_CHECKPOINT_DIR>
 #
-# This config works only for training on single device.
+# This config works best when the model is being fine-tuned on 2+ GPUs.
+# Single device full finetuning requires more memory optimizations. It's
+# best to use 8B_full_single_device.yaml for those cases
 
 
-output_dir: /data/imodoranu/results/torchtune/Llama3.1-8B-Instruct/full_single_device
+output_dir: /data/imodoranu/results/torchtune/Llama3.1-8B-Instruct/full_distributed
 
 # Tokenizer
 tokenizer:
@@ -28,17 +26,23 @@ tokenizer:
     path: /data/shared/huggingface/Meta-Llama-3.1-8B-Instruct/original/tokenizer.model
     max_seq_len: null
 
-# Dataset
+# Dataset and Sampler
 dataset:
     _component_: torchtune.datasets.open_math_instruct_2_dataset
     packed: False  # True increases speed
-    split: train_1M
+    split: train_1M #[:95%]
     column_map:
         input: problem
         output: generated_solution
-
 seed: null
 shuffle: True
+
+# Validation
+run_val_every_n_steps: null  # Change to an integer to enable validation every N steps
+dataset_val:
+    _component_: torchtune.datasets.alpaca_cleaned_dataset
+    split: train[95%:]
+batch_size_val: ${batch_size}
 
 # Model Arguments
 model:
@@ -61,23 +65,26 @@ resume_from_checkpoint: False
 # Fine-tuning arguments
 batch_size: 2
 epochs: 1
+
 optimizer:
-    _component_: bitsandbytes.optim.PagedAdamW8bit
+    _component_: torch.optim.AdamW
     lr: 2e-5
+    fused: True
 loss:
     _component_: torchtune.modules.loss.LinearCrossEntropyLoss
 max_steps_per_epoch: null
-gradient_accumulation_steps: 1  # Use to increase effective batch size
-optimizer_in_bwd: True  # True saves memory. Requires gradient_accumulation_steps=1
 clip_grad_norm: null
 compile: False  # torch.compile the model + loss, True increases speed + decreases memory
+optimizer_in_bwd: False  # True saves memory. Requires gradient_accumulation_steps=1
+gradient_accumulation_steps: 1  # Use to increase effective batch size
 
-# Training environment
+# Training env
 device: cuda
 
 # Memory management
 enable_activation_checkpointing: True  # True reduces memory
 enable_activation_offloading: False  # True reduces memory
+custom_sharded_layers: ['tok_embeddings', 'output']  # Layers to shard separately (useful for large vocab size models). Lower Memory, but lower speed.
 
 # Reduced precision
 dtype: bf16
