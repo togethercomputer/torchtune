@@ -18,7 +18,7 @@
 # best to use 8B_full_single_device.yaml for those cases
 
 
-output_dir: /data/imodoranu/results/torchtune/Llama3.1-8B-Instruct/full_distributed
+output_dir: /data/imodoranu/results/torchtune/Llama3.1-8B-Instruct/full_distributed/${optimizer._component_}/lr=${optimizer.lr}
 
 seed: 42
 shuffle: True
@@ -36,39 +36,39 @@ enable_activation_checkpointing: True  # True reduces memory
 enable_activation_offloading: False  # True reduces memory
 custom_sharded_layers: ['tok_embeddings', 'output']  # Layers to shard separately (useful for large vocab size models). Lower Memory, but lower speed.
 
-#optimizer: # AdamW
-#    _component_: torch.optim.AdamW
-#    lr: 2e-5
-#    weight_decay: 0
-#    betas:
-#        - 0.9
-#        - 0.999
-#    eps: 1e-8
-#    fused: True
-
-optimizer: # FrugalMicroAdam
-    _component_: memory_efficient_optimizers.FrugalMicroAdam
-    lr: 2e-5
-    weight_decay: 0
-    betas:
-        - 0.9
-        - 0.999
-    eps: 1e-8
-    num_grads: 10
-    density: 0.01
-    normalization: none
-
-#optimizer: # CustomEmaAdamW
-#    _component_: memory_efficient_optimizers.CustomEmaAdamW
-#    lr: 2e-5
-#    weight_decay: 0
-#    betas:
-#        - 0.9
-#        - 0.999
-#    eps: 1e-8
-#    ema_schedule: delayed
-#    ema_decay: 10
-#    ema_alpha: 0
+optimizer: # AdamW
+    name: adamw
+    adamw:
+        _component_: torch.optim.AdamW
+        lr: 2e-5
+        weight_decay: 0
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        fused: True
+    frugal_micro_adam:
+        _component_: memory_efficient_optimizers.FrugalMicroAdam
+        lr: 2e-5
+        weight_decay: 0
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        num_grads: 10
+        density: 0.01
+        normalization: none
+    custom_ema_adamw:
+        _component_: memory_efficient_optimizers.CustomEmaAdamW
+        lr: 2e-5
+        weight_decay: 0
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        ema_schedule: delayed
+        ema_decay: 10
+        ema_alpha: 0
 
 # Logging
 metric_logger:
@@ -121,7 +121,7 @@ tokenizer:
 dataset:
     _component_: torchtune.datasets.open_math_instruct_2_dataset
     packed: False  # True increases speed
-    split: train_1M[:10%]
+    split: train_1M
     column_map:
         input: problem
         output: generated_solution
