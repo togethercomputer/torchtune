@@ -24,13 +24,13 @@ seed: 42
 shuffle: True
 resume_from_checkpoint: False
 dtype: bf16
-batch_size: 2
+gradient_accumulation_steps: 2  # Use to increase effective batch size
+batch_size: 1
 epochs: 1
 max_steps_per_epoch: null
 clip_grad_norm: null
-compile: False  # torch.compile the model + loss, True increases speed + decreases memory
+compile: True  # torch.compile the model + loss, True increases speed + decreases memory
 optimizer_in_bwd: False  # True saves memory. Requires gradient_accumulation_steps=1
-gradient_accumulation_steps: 1  # Use to increase effective batch size
 device: cuda
 enable_activation_checkpointing: True  # True reduces memory
 enable_activation_offloading: False  # True reduces memory
@@ -124,7 +124,7 @@ tokenizer:
 dataset:
     _component_: torchtune.datasets.open_math_instruct_2_dataset
     packed: False  # True increases speed
-    split: train_1M[:1%]
+    split: train_1M
     column_map:
         input: problem
         output: generated_solution
