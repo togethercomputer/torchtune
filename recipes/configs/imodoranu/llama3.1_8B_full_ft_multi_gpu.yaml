@@ -20,63 +20,45 @@
 
 output_dir: /data/imodoranu/results/torchtune/Llama3.1-8B-Instruct/full_distributed
 
-# Tokenizer
-tokenizer:
-    _component_: torchtune.models.llama3.llama3_tokenizer
-    path: /data/shared/huggingface/Meta-Llama-3.1-8B-Instruct/original/tokenizer.model
-    max_seq_len: null
 
-# Dataset and Sampler
-dataset:
-    _component_: torchtune.datasets.open_math_instruct_2_dataset
-    packed: False  # True increases speed
-    split: train_1M #[:95%]
-    column_map:
-        input: problem
-        output: generated_solution
-seed: null
+seed: 42
 shuffle: True
 
-# Validation
-run_val_every_n_steps: null  # Change to an integer to enable validation every N steps
-dataset_val:
-    _component_: torchtune.datasets.alpaca_cleaned_dataset
-    split: train[95%:]
-batch_size_val: ${batch_size}
-
-# Model Arguments
-model:
-    _component_: torchtune.models.llama3_1.llama3_1_8b
-
-checkpointer:
-    _component_: torchtune.training.FullModelHFCheckpointer
-    checkpoint_dir: /data/shared/huggingface/Meta-Llama-3.1-8B-Instruct
-    checkpoint_files: [
-        model-00001-of-00004.safetensors,
-        model-00002-of-00004.safetensors,
-        model-00003-of-00004.safetensors,
-        model-00004-of-00004.safetensors
-    ]
-    recipe_checkpoint: null
-    output_dir: ${output_dir}
-    model_type: LLAMA3
 resume_from_checkpoint: False
+
+# Reduced precision
+dtype: bf16
 
 # Fine-tuning arguments
 batch_size: 2
 epochs: 1
-
-optimizer:
-    _component_: torch.optim.AdamW
-    lr: 2e-5
-    fused: True
-loss:
-    _component_: torchtune.modules.loss.LinearCrossEntropyLoss
 max_steps_per_epoch: null
 clip_grad_norm: null
 compile: False  # torch.compile the model + loss, True increases speed + decreases memory
 optimizer_in_bwd: False  # True saves memory. Requires gradient_accumulation_steps=1
 gradient_accumulation_steps: 1  # Use to increase effective batch size
+
+#optimizer: # AdamW
+#    _component_: torch.optim.AdamW
+#    lr: 2e-5
+#    weight_decay: 0
+#    betas:
+#        - 0.9
+#        - 0.999
+#    eps: 1e-8
+#    fused: True
+
+optimizer: # FrugalMicroAdamW
+    _component_: FrugalMicroAdamW
+    lr: 2e-5
+    weight_decay: 0
+    betas:
+        - 0.9
+        - 0.999
+    eps: 1e-8
+
+loss:
+    _component_: torchtune.modules.loss.LinearCrossEntropyLoss
 
 # Training env
 device: cuda
@@ -85,18 +67,6 @@ device: cuda
 enable_activation_checkpointing: True  # True reduces memory
 enable_activation_offloading: False  # True reduces memory
 custom_sharded_layers: ['tok_embeddings', 'output']  # Layers to shard separately (useful for large vocab size models). Lower Memory, but lower speed.
-
-# Reduced precision
-dtype: bf16
-
-# Logging
-metric_logger:
-    _component_: torchtune.training.metric_logging.DiskLogger
-    log_dir: ${output_dir}/logs
-log_every_n_steps: 1
-log_peak_memory_stats: True
-log_level: INFO  # DEBUG, WARN, etc.
-
 
 # Profiler (disabled)
 profiler:
@@ -122,3 +92,55 @@ profiler:
     warmup_steps: 3
     active_steps: 2
     num_cycles: 1
+
+# Tokenizer
+tokenizer:
+    _component_: torchtune.models.llama3.llama3_tokenizer
+    path: /data/shared/huggingface/Meta-Llama-3.1-8B-Instruct/original/tokenizer.model
+    max_seq_len: null
+
+# Dataset and Sampler
+dataset:
+    _component_: torchtune.datasets.open_math_instruct_2_dataset
+    packed: False  # True increases speed
+    split: train_1M[:10%]
+    column_map:
+        input: problem
+        output: generated_solution
+
+## Validation
+#run_val_every_n_steps: null  # Change to an integer to enable validation every N steps
+#dataset_val:
+#    _component_: torchtune.datasets.alpaca_cleaned_dataset
+#    split: train[95%:]
+#batch_size_val: ${batch_size}
+
+# Logging
+metric_logger:
+    _component_: torchtune.training.metric_logging.WandBLogger
+    project: ionut_torchtune_llama3.1-8B_full_ft_multi_gpu
+    entity: ionutmodo
+    group: AdamW_batch-size=${batch_size}
+    job_type: lr=${optimizer.lr}
+    name: seed=${seed}
+    log_dir: ${output_dir}/logs
+log_every_n_steps: 1
+log_peak_memory_stats: True
+log_level: INFO  # DEBUG, WARN, etc.
+
+# Model Arguments
+model:
+    _component_: torchtune.models.llama3_1.llama3_1_8b
+
+checkpointer:
+    _component_: torchtune.training.FullModelHFCheckpointer
+    checkpoint_dir: /data/shared/huggingface/Meta-Llama-3.1-8B-Instruct
+    checkpoint_files: [
+        model-00001-of-00004.safetensors,
+        model-00002-of-00004.safetensors,
+        model-00003-of-00004.safetensors,
+        model-00004-of-00004.safetensors
+    ]
+    recipe_checkpoint: null
+    output_dir: ${output_dir}
+    model_type: LLAMA3
