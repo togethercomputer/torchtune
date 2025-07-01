@@ -22,12 +22,12 @@ output_dir: /data/imodoranu/results/torchtune/Llama3.2-1B-Instruct/full_distribu
 
 seed: 42
 shuffle: True
-batch_size: 4
+batch_size: 8
 
 # Training
 epochs: 1
 max_steps_per_epoch: null
-gradient_accumulation_steps: 8  # Use to increase effective batch size
+gradient_accumulation_steps: 4
 
 # Environment
 device: cuda
@@ -37,7 +37,7 @@ dtype: bf16
 enable_activation_checkpointing: False  # True reduces memory
 enable_activation_offloading: False  # True reduces memory
 clip_grad_norm: null
-compile: True  # torch.compile the model + loss, True increases speed + decreases memory
+compile: False  # torch.compile the model + loss, True increases speed + decreases memory
 optimizer_in_bwd: False  # True saves memory. Requires gradient_accumulation_steps=1
 
 optimizer: # AdamW
@@ -53,7 +53,7 @@ optimizer: # AdamW
         fused: True
     frugal_micro_adam:
         _component_: memory_efficient_optimizers.FrugalMicroAdamTorch
-        lr: 2e-6
+        lr: 2e-5
         weight_decay: 0
         betas:
             - 0.9
