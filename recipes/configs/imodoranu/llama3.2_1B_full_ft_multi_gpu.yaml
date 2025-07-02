@@ -27,7 +27,7 @@ learning_rate: 1e-5
 
 batch_size_split: bs=${batch_size}_split=${dataset_split} # used as a shortcut in the config
 root_dir: /data/imodoranu/results/torchtune/Llama3.2-1B-Instruct/full_ft_distributed
-output_dir: ${root_dir}/${wandb.group}/${wandb.job_type}/${wandb.name}
+output_dir: ${root_dir}/${wandb.project}/${wandb.group}/${wandb.job_type}/${wandb.name}
 
 optimizer:
     adamw:
