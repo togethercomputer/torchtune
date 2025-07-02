@@ -39,17 +39,6 @@ optimizer:
             - 0.999
         eps: 1e-8
         fused: True
-    frugal_micro_adam:
-        _component_: memory_efficient_optimizers.FrugalMicroAdamTorch
-        lr: ${learning_rate}
-        weight_decay: 0
-        betas:
-            - 0.9
-            - 0.999
-        eps: 1e-8
-        num_grads: 10
-        density: 0.01
-        normalization: none
     frugal_micro_adam_fsdp2:
         _component_: memory_efficient_optimizers.FrugalMicroAdamTorchFSDP2
         lr: ${learning_rate}
@@ -81,7 +70,6 @@ wandb:
     group: ${wandb.groups.${optimizer_name}}
     groups:
         adamw: adamw_${batch_size_split}
-        frugal_micro_adam: frugal-micro-adam_${batch_size_split}_ng=${optimizer.frugal_micro_adam.num_grads}_k=${optimizer.frugal_micro_adam.density}_norm=${optimizer.frugal_micro_adam.normalization}
         frugal_micro_adam_fsdp2: frugal-micro-adam_${batch_size_split}_ng=${optimizer.frugal_micro_adam_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_fsdp2.density}_norm=${optimizer.frugal_micro_adam_fsdp2.normalization}
         custom_ema_adamw: custom-ema-adamw_${batch_size_split}_sched=${optimizer.custom_ema_adamw.ema_schedule}-${optimizer.custom_ema_adamw.ema_decay}_a=${optimizer.custom_ema_adamw.ema_alpha}
 
