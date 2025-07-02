@@ -20,11 +20,12 @@
 ##################################################
 ########## START CUSTOM KEYS
 
+dataset_split: train_1M
 batch_size: 8
 optimizer_name: adamw
 learning_rate: 1e-5
 
-batch_size_split: bs=${batch_size}_split=${dataset.split} # used as a shortcut in the config
+batch_size_split: bs=${batch_size}_split=${dataset_split} # used as a shortcut in the config
 root_dir: /data/imodoranu/results/torchtune/Llama3.2-1B-Instruct/full_ft_distributed
 output_dir: ${root_dir}/${wandb.group}/${wandb.job_type}/${wandb.name}
 
@@ -114,7 +115,7 @@ optimizer_in_bwd: False  # True saves memory. Requires gradient_accumulation_ste
 dataset:
     _component_: torchtune.datasets.open_math_instruct_2_dataset
     packed: False  # True increases speed
-    split: train_1M[:95%]
+    split: ${dataset_split}[:95%]
     column_map:
         input: problem
         output: generated_solution
@@ -129,7 +130,7 @@ tokenizer:
 run_val_every_n_steps: 100  # Change to an integer to enable validation every N steps
 dataset_val:
     _component_: ${dataset._component_}
-    split: ${dataset.split}[95%:]
+    split: ${dataset_split}[95%:]
 batch_size_val: ${batch_size}
 
 model:
