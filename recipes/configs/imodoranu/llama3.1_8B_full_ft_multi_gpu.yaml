@@ -133,6 +133,9 @@ run_val_every_n_steps: 100  # Change to an integer to enable validation every N 
 dataset_val:
     _component_: ${dataset._component_}
     split: ${dataset_split}[95%:]
+    column_map:
+        input: problem
+        output: generated_solution
 batch_size_val: ${batch_size}
 
 model:
