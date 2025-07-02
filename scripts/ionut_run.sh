@@ -17,7 +17,14 @@ MODEL="3.2_1B"
 #done
 
 
+OPTIMIZER=adamw
+#OPTIMIZER=frugal_micro_adam
+#OPTIMIZER=frugal_micro_adam_fsdp2
+
+LR=1e-5
 tune run \
     --nproc_per_node 8 \
     full_finetune_distributed \
-    --config "recipes/configs/imodoranu/llama${MODEL}_full_ft_multi_gpu.yaml"
+    --config "recipes/configs/imodoranu/llama${MODEL}_full_ft_multi_gpu.yaml" \
+    optimizer_name=${OPTIMIZER} \
+    learning_rate=${LR}

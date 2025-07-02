@@ -18,13 +18,92 @@
 # best to use 8B_full_single_device.yaml for those cases
 
 
-output_dir: /data/imodoranu/results/torchtune/Llama3.1-8B-Instruct/full_distributed/${optimizer.name}/lr=${optimizer.${optimizer.name}.lr}
+##################################################
+########## START CUSTOM KEYS
 
-seed: 42
-shuffle: True
 batch_size: 32
+optimizer_name: adamw
+learning_rate: 1e-5
+
+batch_size_split: bs=${batch_size}_split=${dataset.split} # used as a shortcut in the config
+root_dir: /data/imodoranu/results/torchtune/Llama3.2-1B-Instruct/full_ft_distributed
+output_dir: ${root_dir}/${wandb.group}/${wandb.job_type}/${wandb.name}
+
+optimizer:
+    adamw:
+        _component_: torch.optim.AdamW
+        lr: ${learning_rate}
+        weight_decay: 0
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        fused: True
+    frugal_micro_adam:
+        _component_: memory_efficient_optimizers.FrugalMicroAdamTorch
+        lr: ${learning_rate}
+        weight_decay: 0
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        num_grads: 10
+        density: 0.01
+        normalization: none
+    frugal_micro_adam_fsdp2:
+        _component_: memory_efficient_optimizers.FrugalMicroAdamTorchFSDP2
+        lr: ${learning_rate}
+        weight_decay: 0
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        num_grads: 10
+        density: 0.01
+        normalization: none
+    custom_ema_adamw:
+        _component_: memory_efficient_optimizers.CustomEmaAdamW
+        lr: ${learning_rate}
+        weight_decay: 0
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        ema_schedule: delayed
+        ema_decay: 10
+        ema_alpha: 0.001
+
+wandb:
+    project: ionut_torchtune_llama3.2-1B_full_ft_multi_gpu
+    entity: ionutmodo
+    job_type: lr=${learning_rate}
+    name: seed=${seed}
+    group: ${wandb.groups.${optimizer_name}}
+    groups:
+        adamw: adamw_${batch_size_split}
+        frugal_micro_adam: frugal-micro-adam_${batch_size_split}_ng=${optimizer.frugal_micro_adam.num_grads}_k=${optimizer.frugal_micro_adam.density}_norm=${optimizer.frugal_micro_adam.normalization}
+        frugal_micro_adam_fsdp2: frugal-micro-adam_${batch_size_split}_ng=${optimizer.frugal_micro_adam_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_fsdp2.density}_norm=${optimizer.frugal_micro_adam_fsdp2.normalization}
+        custom_ema_adamw: custom-ema-adamw_${batch_size_split}_sched=${optimizer.custom_ema_adamw.ema_schedule}-${optimizer.custom_ema_adamw.ema_decay}_a=${optimizer.custom_ema_adamw.ema_alpha}
+
+# Logging
+metric_logger:
+    _component_: torchtune.training.metric_logging.WandBLogger
+    project: ${wandb.project}
+    entity: ionutmodo
+    group: ${wandb.group}
+    job_type: ${wandb.job_type}
+    name: ${wandb.name}
+    log_dir: ${output_dir}/logs
+log_every_n_steps: 1
+log_peak_memory_stats: True
+log_level: INFO  # DEBUG, WARN, etc.
+########## END CUSTOM KEYS
+##################################################
+
 
 # Training
+seed: 42
+shuffle: True
 epochs: 1
 max_steps_per_epoch: null
 gradient_accumulation_steps: 1  # Use to increase effective batch size
@@ -41,40 +120,6 @@ clip_grad_norm: null
 compile: False  # torch.compile the model + loss, True increases speed + decreases memory
 optimizer_in_bwd: False  # True saves memory. Requires gradient_accumulation_steps=1
 
-optimizer: # AdamW
-    name: adamw
-    adamw:
-        _component_: torch.optim.AdamW
-        lr: 1e-5
-        weight_decay: 0
-        betas:
-            - 0.9
-            - 0.999
-        eps: 1e-8
-        fused: True
-    frugal_micro_adam:
-        _component_: memory_efficient_optimizers.FrugalMicroAdamTorch
-        lr: 2e-6
-        weight_decay: 0
-        betas:
-            - 0.9
-            - 0.999
-        eps: 1e-8
-        num_grads: 10
-        density: 0.01
-        normalization: none
-    custom_ema_adamw:
-        _component_: memory_efficient_optimizers.CustomEmaAdamW
-        lr: 2e-5
-        weight_decay: 0
-        betas:
-            - 0.9
-            - 0.999
-        eps: 1e-8
-        ema_schedule: delayed
-        ema_decay: 10
-        ema_alpha: 0.001
-
 #lr_scheduler:
 #    _component_: torchtune.training.lr_schedulers.get_cosine_schedule_with_warmup
 #    num_warmup_steps: 6250 # 10% of training
@@ -83,7 +128,7 @@ optimizer: # AdamW
 dataset:
     _component_: torchtune.datasets.open_math_instruct_2_dataset
     packed: False  # True increases speed
-    split: train_1M
+    split: train_1M[:95%]
     column_map:
         input: problem
         output: generated_solution
@@ -94,12 +139,12 @@ tokenizer:
     path: /data/shared/huggingface/Meta-Llama-3.1-8B-Instruct/original/tokenizer.model
     max_seq_len: null
 
-## Validation
-#run_val_every_n_steps: null  # Change to an integer to enable validation every N steps
-#dataset_val:
-#    _component_: torchtune.datasets.alpaca_cleaned_dataset
-#    split: train[95%:]
-#batch_size_val: ${batch_size}
+
+run_val_every_n_steps: 100  # Change to an integer to enable validation every N steps
+dataset_val:
+    _component_: ${dataset._component_}
+    split: ${dataset.split}[95%:]
+batch_size_val: ${batch_size}
 
 model:
     _component_: torchtune.models.llama3_1.llama3_1_8b
@@ -120,19 +165,6 @@ resume_from_checkpoint: False
 
 loss:
     _component_: torchtune.modules.loss.LinearCrossEntropyLoss
-
-# Logging
-metric_logger:
-    _component_: torchtune.training.metric_logging.WandBLogger
-    project: ionut_torchtune_llama3.1-8B_full_ft_multi_gpu
-    entity: ionutmodo
-    group: ${optimizer.name}_batch-size=${batch_size}_split=${dataset.split}
-    job_type: lr=${optimizer.${optimizer.name}.lr}
-    name: seed=${seed}
-    log_dir: ${output_dir}/logs
-log_every_n_steps: 1
-log_peak_memory_stats: True
-log_level: INFO  # DEBUG, WARN, etc.
 
 # Profiler (disabled)
 profiler:

@@ -385,7 +385,7 @@ class FullFinetuneRecipeDistributed(FTRecipeInterface):
             resize_token_embeddings(self._model, self._tokenizer.vocab_size)
 
         self._optimizer = self._setup_optimizer(
-            cfg_optimizer=cfg.optimizer[cfg.optimizer.name],
+            cfg_optimizer=cfg.optimizer[cfg.optimizer_name],
             optimizer_in_bwd=self._optimizer_in_bwd,
             opt_state_dict=(
                 checkpoint_dict[training.OPT_KEY]
