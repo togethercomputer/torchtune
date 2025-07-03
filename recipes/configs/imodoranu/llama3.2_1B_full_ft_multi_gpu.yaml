@@ -20,17 +20,20 @@
 ##################################################
 ########## START CUSTOM KEYS
 
-dataset_split: train_1M
-batch_size: 1
 optimizer_name: adamw
+dataset_split: train_1M
+
+batch_size: 2
+gradient_accumulation_steps: 32
+
 learning_rate: 1e-5
+weight_decay: 0
 
 # Training
 seed: 42
 shuffle: True
 epochs: 1
 max_steps_per_epoch: null
-gradient_accumulation_steps: 32
 
 # Environment
 device: cuda
@@ -39,11 +42,11 @@ dtype: bf16
 # Memory management
 enable_activation_checkpointing: False  # True reduces memory
 enable_activation_offloading: False  # True reduces memory
-clip_grad_norm: null
+clip_grad_norm: 1
 compile: False  # torch.compile the model + loss, True increases speed + decreases memory
 optimizer_in_bwd: False  # True saves memory. Requires gradient_accumulation_steps=1
 
-batch_size_split: bs=${batch_size}_split=${dataset_split} # used as a shortcut in the config
+extra: bs=${batch_size}_gas=${gradient_accumulation_steps}_cg=${clip_grad_norm}_split=${dataset_split} # used as a shortcut in the config
 root_dir: /data/imodoranu/results/
 output_dir: ${root_dir}/${wandb.project}/${wandb.group}/${wandb.job_type}/${wandb.name}
 
@@ -51,7 +54,7 @@ optimizer:
     adamw:
         _component_: torch.optim.AdamW
         lr: ${learning_rate}
-        weight_decay: 0
+        weight_decay: ${weight_decay}
         betas:
             - 0.9
             - 0.999
@@ -60,18 +63,19 @@ optimizer:
     frugal_micro_adam_fsdp2:
         _component_: memory_efficient_optimizers.FrugalMicroAdamTorchFSDP2
         lr: ${learning_rate}
-        weight_decay: 0
+        weight_decay: ${weight_decay}
         betas:
             - 0.9
             - 0.999
         eps: 1e-8
         num_grads: 10
         density: 0.01
+        use_sign_sgd: 0
         normalization: none
     custom_ema_adamw:
         _component_: memory_efficient_optimizers.CustomEmaAdamW
         lr: ${learning_rate}
-        weight_decay: 0
+        weight_decay: ${weight_decay}
         betas:
             - 0.9
             - 0.999
@@ -87,9 +91,9 @@ wandb:
     name: seed=${seed}
     group: ${wandb.groups.${optimizer_name}}
     groups:
-        adamw: adamw_${batch_size_split}
-        frugal_micro_adam_fsdp2: frugal-micro-adam_${batch_size_split}_ng=${optimizer.frugal_micro_adam_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_fsdp2.density}_norm=${optimizer.frugal_micro_adam_fsdp2.normalization}
-        custom_ema_adamw: custom-ema-adamw_${batch_size_split}_sched=${optimizer.custom_ema_adamw.ema_schedule}-${optimizer.custom_ema_adamw.ema_decay}_a=${optimizer.custom_ema_adamw.ema_alpha}
+        adamw: adamw_${extra}
+        frugal_micro_adam_fsdp2: frugal-micro-adam-sgd=${optimizer.frugal_micro_adam_fsdp2.use_sign_sgd}_${extra}_ng=${optimizer.frugal_micro_adam_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_fsdp2.density}_norm=${optimizer.frugal_micro_adam_fsdp2.normalization}
+        custom_ema_adamw: custom-ema-adamw_${extra}_sched=${optimizer.custom_ema_adamw.ema_schedule}-${optimizer.custom_ema_adamw.ema_decay}_a=${optimizer.custom_ema_adamw.ema_alpha}
 
 # Logging
 metric_logger:
