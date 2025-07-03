@@ -60,6 +60,18 @@ optimizer:
             - 0.999
         eps: 1e-8
         fused: True
+    micro_adam_cuda_fsdp2:
+        _component_: memory_efficient_optimizers.MicroAdamCUDAFSDP2
+        lr: ${learning_rate}
+        weight_decay: ${weight_decay}
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        num_grads: 10
+        density: 0.01
+        quant_block_size: 100000
+        decay_all_weights: 1
     frugal_micro_adam_fsdp2:
         _component_: memory_efficient_optimizers.FrugalMicroAdamTorchFSDP2
         lr: ${learning_rate}
@@ -92,6 +104,7 @@ wandb:
     group: ${wandb.groups.${optimizer_name}}
     groups:
         adamw: adamw_${extra}
+        micro_adam_cuda_fsdp2: micro-adam_${extra}_ng=${optimizer.micro_adam_cuda_fsdp2.num_grads}_k=${optimizer.micro_adam_cuda_fsdp2.density}_qbs=${optimizer.micro_adam_cuda_fsdp2.quant_block_size}_daw=${optimizer.micro_adam_cuda_fsdp2.decay_all_weights}
         frugal_micro_adam_fsdp2: frugal-micro-adam-sgd=${optimizer.frugal_micro_adam_fsdp2.use_sign_sgd}_${extra}_ng=${optimizer.frugal_micro_adam_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_fsdp2.density}_norm=${optimizer.frugal_micro_adam_fsdp2.normalization}
         custom_ema_adamw: custom-ema-adamw_${extra}_sched=${optimizer.custom_ema_adamw.ema_schedule}-${optimizer.custom_ema_adamw.ema_decay}_a=${optimizer.custom_ema_adamw.ema_alpha}
 
