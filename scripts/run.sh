@@ -9,18 +9,22 @@ MODEL="3.2_1B"
 
 #OPTIMIZER=adamw
 #OPTIMIZER=frugal_micro_adam_fsdp2
-OPTIMIZER=micro_adam_cuda_fsdp2
+#OPTIMIZER=micro_adam_cuda_fsdp2
+#OPTIMIZER=custom_ema_adamw
 
-for LR in 9e-6 8e-6 7e-6 6e-6 5e-6; do
-    tune run \
-        --nproc_per_node 8 \
-        full_finetune_distributed \
-        --config "recipes/configs/imodoranu/llama${MODEL}_full_ft_multi_gpu.yaml" \
-        optimizer_name=${OPTIMIZER} \
-        learning_rate=${LR} \
-        optimizer.micro_adam_cuda_fsdp2.decay_all_weights=1
+for OPTIMIZER in custom_ema_adamw; do
+    for EMA_DECAY in 10 25 50 100; do
+        for LR in 9e-6 8e-6 7e-6; do
+            tune run \
+                --nproc_per_node 8 \
+                full_finetune_distributed \
+                --config "recipes/configs/imodoranu/llama${MODEL}_full_ft_multi_gpu.yaml" \
+                optimizer_name=${OPTIMIZER} \
+                learning_rate=${LR} \
+                optimizer.custom_ema_adamw.ema_decay=${EMA_DECAY}
+        done
+    done
 done
-
 
 #        optimizer.frugal_micro_adam_fsdp2.use_sign_sgd=0 \
 #        optimizer.frugal_micro_adam_fsdp2.normalization=none

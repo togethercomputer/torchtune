@@ -69,7 +69,7 @@ optimizer:
             - 0.999
         eps: 1e-8
         num_grads: 10
-        density: 0.01
+        density: 0.02
         quant_block_size: 64
         decay_all_weights: 1
     frugal_micro_adam_fsdp2:
@@ -80,9 +80,9 @@ optimizer:
             - 0.9
             - 0.999
         eps: 1e-8
-        num_grads: 10
-        density: 0.01
-        use_sign_sgd: 0
+        num_grads: 5
+        density: 0.02
+        use_sign_sgd: 1
         normalization: none
     custom_ema_adamw:
         _component_: memory_efficient_optimizers.CustomEmaAdamW
@@ -94,7 +94,7 @@ optimizer:
         eps: 1e-8
         ema_schedule: delayed
         ema_decay: 10
-        ema_alpha: 0.001
+        ema_alpha: 0
 
 wandb:
     project: ionut_torchtune_llama3.2-1B_full_ft_multi_gpu
