@@ -47,7 +47,7 @@ compile: False  # torch.compile the model + loss, True increases speed + decreas
 optimizer_in_bwd: False  # True saves memory. Requires gradient_accumulation_steps=1
 
 extra: bs=${batch_size}_gas=${gradient_accumulation_steps}_cg=${clip_grad_norm}_split=${dataset_split} # used as a shortcut in the config
-root_dir: /data/imodoranu/results/
+root_dir: /data/imodoranu/results
 output_dir: ${root_dir}/${wandb.project}/${wandb.group}/${wandb.job_type}/${wandb.name}
 
 optimizer:
