@@ -7,6 +7,7 @@ from gridsearcher import GridSearcher, GSExe, GSKeyValSep
 def get_arg_parse():
     parser = argparse.ArgumentParser()
     parser.add_argument('--filter', type=str, required=True)
+    parser.add_argument('--exact', type=int, required=False, default=0, choices=[0, 1])
     # parser.add_argument('--exclude', default='', type=str, required=False) # 'gpu266,gpu275,gpu276,gpu277'
     # parser.add_argument('--cpus_per_task', default=10, type=int, required=False)
     # parser.add_argument('--time', default='10-00:00:00', type=str, required=False)
@@ -26,6 +27,8 @@ def main():
         To use this script, run **pip3 install gridsearcher**
     """
     args = get_arg_parse()
+    group_filters = args.filter.split(',')
+    exact_filter = bool(args.exact)
 
     gpus = [
         0,
@@ -57,7 +60,7 @@ def main():
     ] # (version, size)
 
     TASKS = [
-        'math',
+        # 'math',
         'gsm8k',
         # 'viggo',
         # 'sql',
@@ -74,8 +77,6 @@ def main():
             api = wandb.Api()
             runs = api.runs(f'ist/{wandb_project}')
 
-            group_filters = args.filter.split(',')
-
             for run in runs:
                 # run_str = f'{run.group}/{run.job_type}'
                 if run.state != 'finished':
@@ -84,7 +85,7 @@ def main():
                 if 'eval/acc' in run.summary:
                     # print(f'skipping run {run_str} because model was already trained')
                     continue
-                if not any([gf in run.group for gf in group_filters]):
+                if not any([(gf == run.group) if exact_filter else (gf in run.group) for gf in group_filters]):
                     # print(f'skipping run {run_str} because group does not contain any string from "{group_filters}"')
                     continue
 
