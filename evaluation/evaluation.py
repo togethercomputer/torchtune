@@ -154,26 +154,42 @@ def evaluate_model(ft_model_path, task, num_fewshot=0, batch_size=16, limit=None
     if task in ['viggo', 'sql']:
         return _evaluate_custom_dataset(ft_model_path, out, task)
 
+    print(f'\n\n\t{ft_model_path}\n\n')
+
     results = evaluator.simple_evaluate(
-        model='hf-causal-experimental',
-        model_args=f'pretrained="{ft_model_path}",use_accelerate=True,dtype=bfloat16',
-        tasks=utils.pattern_match(task.split(","), tasks.ALL_TASKS),
+        model='hf',
+        model_args=f'pretrained={ft_model_path},dtype=bfloat16',
+        tasks=[task], # utils.pattern_match(task.split(","), tasks.ALL_TASKS),
         num_fewshot=num_fewshot,
         batch_size=batch_size,
         max_batch_size=None,
         device='cuda:0',
-        no_cache=True,
+        # no_cache=True, # new param name: use_cache [str]
         limit=limit,
-        description_dict={},
-        decontamination_ngrams_path=None,
+        # description_dict={},
+        # decontamination_ngrams_path=None,
         check_integrity=False,
         write_out=True,
-        output_base_path=out
+        # output_base_path=out
     )
-    with open(os.path.join(out, f'{task}_eval_metrics.json'), "w") as f:
-        f.write(json.dumps(results, indent=4))
 
-    accuracy = results['results'][task]['acc']
-    accuracy_std = results['results'][task]['acc_stderr']
+    with open(os.path.join(out, f'{task}_keys.txt'), "w") as f:
+        for key in results:
+            f.write(f'{key}\n')
 
-    return accuracy, accuracy_std
+    with open(os.path.join(out, f'{task}_raw_results.txt'), "w") as f:
+        f.write(str(results))
+
+    for key, value in results.items():
+        try:
+            with open(os.path.join(out, f'{task}_{key}.txt'), "w") as f:
+                f.write(json.dumps(value, indent=4))
+        except:
+            print(f'Error writing key {key}')
+
+    strict = results['results'][task]['exact_match,strict-match']
+    strict_std = results['results'][task]['exact_match_stderr,strict-match']
+    flexible = results['results'][task]['exact_match,flexible-extract']
+    flexible_std = results['results'][task]['exact_match_stderr,flexible-extract']
+
+    return strict, strict_std, flexible, flexible_std

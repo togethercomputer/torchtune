@@ -44,7 +44,9 @@ def model_eval(args):
     ft_model_path = os.path.join(
         args.root,
         args.wandb_project,
-        f'{args.wandb_group}_{args.wandb_job_type}_{args.wandb_name}',
+        args.wandb_group,
+        args.wandb_job_type,
+        args.wandb_name,
         # 'huggingface'
         'epoch_0',
     )
@@ -67,8 +69,12 @@ def model_eval(args):
             data = json.load(file)
             if args.task == 'gsm8k':
                 eval_data = {
-                    f'eval/{args.task}/acc': data['results']['gsm8k']['acc'],
-                    f'eval/{args.task}/acc-std': data['results']['gsm8k']['acc_stderr'],
+                    # f'eval/{args.task}/acc': data['results']['gsm8k']['acc'],
+                    # f'eval/{args.task}/acc-std': data['results']['gsm8k']['acc_stderr'],
+                    f'eval/{args.task}/strict': data[args.task]['exact_match,strict-match'],
+                    f'eval/{args.task}/strict-std': data[args.task]['exact_match_stderr,strict-match'],
+                    f'eval/{args.task}/flexible': data[args.task]['exact_match,flexible-match'],
+                    f'eval/{args.task}/flexible-std': data[args.task]['exact_match_stderr,flexible-match'],
                     f'eval/{args.task}/elapsed': 'unknown'
                 }
             elif args.task in ['viggo', 'sql']:
@@ -85,15 +91,20 @@ def model_eval(args):
     else:
         print(f'Evaluation metrics file not found: {eval_metrics_file}')
         time_eval_start = time.time()
-        acc, acc_std = evaluate_model(
+        # acc, acc_std = evaluate_model(
+        strict, strict_std, flexible, flexible_std = evaluate_model(
             ft_model_path=ft_model_path,
             task=args.task,
             batch_size=args.batch_size)
         time_eval_end = time.time()
 
         eval_data = {
-            f'eval/{args.task}/acc': acc,
-            f'eval/{args.task}/acc-std': acc_std,
+            # f'eval/{args.task}/acc': acc,
+            # f'eval/{args.task}/acc-std': acc_std,
+            f'eval/{args.task}/strict': strict,
+            f'eval/{args.task}/strict-std': strict_std,
+            f'eval/{args.task}/flexible': flexible,
+            f'eval/{args.task}/flexible-std': flexible_std,
             f'eval/{args.task}/elapsed': convert_seconds_to_hours_minutes_seconds(time_eval_end - time_eval_start)
         }
     # end if-else

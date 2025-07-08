@@ -41,14 +41,6 @@ def main():
         7,
     ]
 
-    # llama_version = 2; llama_size = 7
-    # llama_version = 3; llama_size = 8
-
-    # task = 'gsm8k'
-    # task = 'viggo'
-    # task = 'sql'
-    # task = 'math'
-
     BATCH_SIZE = 64 # if llama_version == 2 else 32
     # ROOT = '/mnt/beegfs/alistgrp/imodoran/results'
     ROOT = '/data/imodoranu/results/'
@@ -56,7 +48,8 @@ def main():
     MODELS = [
         # (2, 7),
         # (3, 8),
-        (3.2, 1),
+        (3.1, 8),
+        # (3.2, 1),
     ] # (version, size)
 
     TASKS = [
@@ -66,16 +59,20 @@ def main():
         # 'sql',
     ]
 
+    # wandb_entity = 'ist'
+    wandb_entity = 'ionutmodo'
+
     core_eval_args = []
 
     for llama_version, llama_size in MODELS:
         for task in TASKS:
             # wandb_project = f'ionut_clr-adamw_llama{llama_version}-{llama_size}b_{task}'
             # wandb_project = f'imodoranu_frugal-micro-adam_llama{llama_version}-{llama_size}b_{task}'
+            # wandb_project = f'ionut_torchtune_llama{llama_version}-{llama_size}B_full_ft_multi_gpu'
             wandb_project = f'ionut_torchtune_llama{llama_version}-{llama_size}B_full_ft_multi_gpu'
 
             api = wandb.Api()
-            runs = api.runs(f'ist/{wandb_project}')
+            runs = api.runs(f'{wandb_entity}/{wandb_project}')
 
             for run in runs:
                 # run_str = f'{run.group}/{run.job_type}'
@@ -138,5 +135,6 @@ if __name__ == '__main__':
 
 """
     Script usage:
-    py main_scrape_eval.py --filter clr_adamw
+    python3 main_scrape_eval_allocated.py --exact=1 --filter=adamw_bs=2_gas=32_cg=1_split=train_1M
+    python3 main_scrape_eval_allocated.py --exact=1 --filter=frugal-micro-adam-sgd=1_bs=2_gas=32_cg=1_split=train_1M_ng=10_k=0.02_norm=none
 """
