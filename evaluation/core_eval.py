@@ -19,6 +19,7 @@ def get_arg_parse():
     parser = argparse.ArgumentParser()
     parser.add_argument('--csv_args',       type=str, default=None, required=False,  help='The root folder that contains the experiment')
     parser.add_argument('--root',           type=str, default=None, required=False, help='The root folder that contains the experiment')
+    parser.add_argument('--wandb_entity',   type=str, default=None, required=False, help='The wandb project inside "ist" owner.')
     parser.add_argument('--wandb_project',  type=str, default=None, required=False, help='The wandb project inside "ist" owner.')
     parser.add_argument('--wandb_group',    type=str, default=None, required=False, help='The wandb group in the project.')
     parser.add_argument('--wandb_job_type', type=str, default=None, required=False, help='The wandb job type')

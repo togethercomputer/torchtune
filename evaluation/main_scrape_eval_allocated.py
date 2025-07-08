@@ -6,7 +6,6 @@ from gridsearcher import GridSearcher, GSExe, GSKeyValSep
 
 def get_arg_parse():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--wandb_entity', type=str, default='ionutmodo')
     parser.add_argument('--filter', type=str, required=True)
     parser.add_argument('--exact', type=int, required=False, default=0, choices=[0, 1])
     # parser.add_argument('--exclude', default='', type=str, required=False) # 'gpu266,gpu275,gpu276,gpu277'
@@ -60,7 +59,7 @@ def main():
         # 'sql',
     ]
 
-    wandb_entity = args.wandb_entity
+    wandb_entity = 'ionutmodo'
 
     core_eval_args = []
 
@@ -89,6 +88,7 @@ def main():
                 core_eval_args.append(
                     ','.join([
                         f'root={ROOT}',
+                        f'wandb_entity={wandb_entity}',
                         f'wandb_project={wandb_project}',
                         f'wandb_group={run.group}',
                         f'wandb_job_type={run.job_type}',
