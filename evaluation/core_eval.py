@@ -114,7 +114,7 @@ def model_eval(args):
 def upload_data_to_run(eval_data, args):
     if eval_data is not None:
         api = wandb.Api()
-        run = api.run(f'ist/{args.wandb_project}/{args.wandb_run_id}')
+        run = api.run(f'{args.wandb_entity}/{args.wandb_project}/{args.wandb_run_id}')
         for k, v in eval_data.items():
             if k not in run.summary:
                 run.summary[k] = v
