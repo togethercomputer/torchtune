@@ -69,7 +69,7 @@ optimizer:
             - 0.999
         eps: 1e-8
         num_grads: 10
-        density: 0.02
+        density: 0.01
         quant_block_size: 64
         decay_all_weights: 1
     frugal_micro_adam_fsdp2:
@@ -80,8 +80,8 @@ optimizer:
             - 0.9
             - 0.999
         eps: 1e-8
-        num_grads: 5
-        density: 0.02
+        num_grads: 10
+        density: 0.01
         use_sign_sgd: 1
         normalization: none
     custom_ema_adamw:
@@ -97,7 +97,7 @@ optimizer:
         ema_alpha: 0
 
 wandb:
-    project: ionut_torchtune_llama3.2-1B_full_ft_multi_gpu
+    project: ionut_torchtune_llama3.2-1B_full_ft_multi_gpu_coswmp
     entity: ionutmodo
     job_type: lr=${learning_rate}
     name: seed=${seed}
@@ -123,9 +123,9 @@ log_level: INFO  # DEBUG, WARN, etc.
 ########## END CUSTOM KEYS
 ##################################################
 
-#lr_scheduler:
-#    _component_: torchtune.training.lr_schedulers.get_cosine_schedule_with_warmup
-#    num_warmup_steps: 6250 # 10% of training
+lr_scheduler:
+    _component_: torchtune.training.lr_schedulers.get_cosine_schedule_with_warmup
+    num_warmup_steps: 195 # 10% of training train_1M + batch_size=2 + grad_accum_steps=32 gives 1953 steps
 
 # Dataset and Sampler
 dataset:
