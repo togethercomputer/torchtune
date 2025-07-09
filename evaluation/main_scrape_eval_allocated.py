@@ -8,12 +8,6 @@ def get_arg_parse():
     parser = argparse.ArgumentParser()
     parser.add_argument('--filter', type=str, required=True)
     parser.add_argument('--exact', type=int, required=False, default=0, choices=[0, 1])
-    # parser.add_argument('--exclude', default='', type=str, required=False) # 'gpu266,gpu275,gpu276,gpu277'
-    # parser.add_argument('--cpus_per_task', default=10, type=int, required=False)
-    # parser.add_argument('--time', default='10-00:00:00', type=str, required=False)
-    # parser.add_argument('--mem', default='100G', type=str, required=False)
-    # parser.add_argument('--partition', default='gpu100', type=str, required=False)
-    # parser.add_argument('--gres', default='gpu:H100:1', type=str, required=False)
     args = parser.parse_args()
     return args
 
@@ -48,12 +42,12 @@ def main():
     MODELS = [
         # (2, 7),
         # (3, 8),
-        (3.1, 8),
-        # (3.2, 1),
+        # (3.1, 8),
+        (3.2, 1),
     ] # (version, size)
 
     TASKS = [
-        # 'math',
+        # 'hendrycks_math',
         'gsm8k',
         # 'viggo',
         # 'sql',
@@ -67,7 +61,6 @@ def main():
         for task in TASKS:
             # wandb_project = f'ionut_clr-adamw_llama{llama_version}-{llama_size}b_{task}'
             # wandb_project = f'imodoranu_frugal-micro-adam_llama{llama_version}-{llama_size}b_{task}'
-            # wandb_project = f'ionut_torchtune_llama{llama_version}-{llama_size}B_full_ft_multi_gpu'
             wandb_project = f'ionut_torchtune_llama{llama_version}-{llama_size}B_full_ft_multi_gpu'
 
             api = wandb.Api()

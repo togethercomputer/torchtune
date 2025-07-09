@@ -92,7 +92,7 @@ def model_eval(args):
     else:
         print(f'Evaluation metrics file not found: {eval_metrics_file}')
         time_eval_start = time.time()
-        # acc, acc_std = evaluate_model(
+
         strict, strict_std, flexible, flexible_std = evaluate_model(
             ft_model_path=ft_model_path,
             task=args.task,
