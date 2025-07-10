@@ -154,7 +154,7 @@ tokenizer:
     max_seq_len: null
 
 
-run_val_every_n_steps: 10  # Change to an integer to enable validation every N steps
+run_val_every_n_steps: 100  # Change to an integer to enable validation every N steps
 dataset_val:
     _component_: ${dataset._component_}
     split: train_2M[:1%]
