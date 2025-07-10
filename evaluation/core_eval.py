@@ -37,6 +37,10 @@ def get_arg_parse():
             key = split[0]
             value = '='.join(split[1:])
             setattr(args, key, value)
+
+    # if '_' in args.wandb_name:
+    #     args.wandb_name = args.wandb_name.split('_')[0]
+
     return args
 
 def model_eval(args):
