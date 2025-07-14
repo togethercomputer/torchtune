@@ -154,12 +154,21 @@ def run_comprehensive_benchmark():
     """Run comprehensive benchmarks with different parameter configurations."""
 
     # Test configurations
-    configs = [
-        {'L': 4, 'E': 8, 'R': 512, 'C': 512, 'r': 16},
-        {'L': 8, 'E': 16, 'R': 1024, 'C': 1024, 'r': 32},
-        {'L': 12, 'E': 32, 'R': 2048, 'C': 2048, 'r': 64},
-        {'L': 6, 'E': 64, 'R': 1024, 'C': 1024, 'r': 32},
-    ]
+    configs = []
+    for L in [1, 2, 4, 8, 16, 32, 64]:
+        for r in [16, 32, 64, 128, 256, 512]:
+            cfg = {'L': L, 'E': 256, 'R': 7168, 'C': 2048, 'r': r}
+            configs.append(cfg)
+        # {'L': 4, 'E': 8, 'R': 512, 'C': 512, 'r': 16},
+        # {'L': 8, 'E': 16, 'R': 1024, 'C': 1024, 'r': 32},
+        # {'L': 12, 'E': 32, 'R': 2048, 'C': 2048, 'r': 64},
+        # {'L': 6, 'E': 64, 'R': 1024, 'C': 1024, 'r': 32},
+        # {'L': 1, 'E': 256, 'R': 7168, 'C': 2048, 'r': 16},
+        # {'L': 1, 'E': 256, 'R': 7168, 'C': 2048, 'r': 32},
+        # {'L': 1, 'E': 256, 'R': 7168, 'C': 2048, 'r': 64},
+        # {'L': 1, 'E': 256, 'R': 7168, 'C': 2048, 'r': 128},
+        # {'L': 1, 'E': 256, 'R': 7168, 'C': 2048, 'r': 256},
+        # {'L': 1, 'E': 256, 'R': 7168, 'C': 2048, 'r': 512},
 
     T = 20  # Number of trials per configuration
 
@@ -194,14 +203,12 @@ def run_comprehensive_benchmark():
         # Display results
         print("\nResults:")
         print(f"Individual Adapters:")
-        print(
-            f"  Time: {individual_stats['mean_time']:.6f}s ± {individual_stats['std_time']:.6f}s (median: {individual_stats['median_time']:.6f}s)")
+        print(f"\tTime: {individual_stats['mean_time']:.6f}s ± {individual_stats['std_time']:.6f}s (median: {individual_stats['median_time']:.6f}s)")
         print(f"  Memory: {individual_stats['mean_memory']:.2f}MB ± {individual_stats['std_memory']:.2f}MB")
 
         print(f"3D Adapters:")
-        print(
-            f"  Time: {tensor_3d_stats['mean_time']:.6f}s ± {tensor_3d_stats['std_time']:.6f}s (median: {tensor_3d_stats['median_time']:.6f}s)")
-        print(f"  Memory: {tensor_3d_stats['mean_memory']:.2f}MB ± {tensor_3d_stats['std_memory']:.2f}MB")
+        print(f"\tTime: {tensor_3d_stats['mean_time']:.6f}s ± {tensor_3d_stats['std_time']:.6f}s (median: {tensor_3d_stats['median_time']:.6f}s)")
+        print(f"\tMemory: {tensor_3d_stats['mean_memory']:.2f}MB ± {tensor_3d_stats['std_memory']:.2f}MB")
 
         # Calculate speedup
         speedup = individual_stats['mean_time'] / tensor_3d_stats['mean_time']
@@ -209,8 +216,8 @@ def run_comprehensive_benchmark():
                                                                                                'mean_memory'] > 0 else 1.0
 
         print(f"\nPerformance Comparison:")
-        print(f"  3D Adapters are {speedup:.2f}x {'faster' if speedup > 1 else 'slower'} than Individual Adapters")
-        print(f"  Memory usage ratio (Individual/3D): {memory_ratio:.2f}x")
+        print(f"\t3D Adapters are {speedup:.2f}x {'faster' if speedup > 1 else 'slower'} than Individual Adapters")
+        print(f"\tMemory usage ratio (Individual/3D): {memory_ratio:.2f}x")
         print()
         print("=" * 60)
         print()
