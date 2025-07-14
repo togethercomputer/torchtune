@@ -8,6 +8,7 @@ def get_arg_parse():
     parser = argparse.ArgumentParser()
     parser.add_argument('--filter', type=str, required=True)
     parser.add_argument('--exact', type=int, required=False, default=0, choices=[0, 1])
+    parser.add_argument('--shots', type=int, required=False, default=0)
     args = parser.parse_args()
     return args
 
@@ -61,7 +62,8 @@ def main():
         for task in TASKS:
             # wandb_project = f'ionut_clr-adamw_llama{llama_version}-{llama_size}b_{task}'
             # wandb_project = f'imodoranu_frugal-micro-adam_llama{llama_version}-{llama_size}b_{task}'
-            wandb_project = f'ionut_torchtune_llama{llama_version}-{llama_size}B_full_ft_multi_gpu'
+            # wandb_project = f'ionut_torchtune_llama{llama_version}-{llama_size}B_full_ft_multi_gpu'
+            wandb_project = f'ionut_torchtune_llama{llama_version}-{llama_size}B_full_ft_multi_gpu_coswmp'
 
             api = wandb.Api()
             runs = api.runs(f'{wandb_entity}/{wandb_project}')
@@ -71,8 +73,8 @@ def main():
                 if run.state != 'finished':
                     # print(f'skipping run {run_str} because it is not finished')
                     continue
-                if 'eval/acc' in run.summary:
-                    # print(f'skipping run {run_str} because model was already trained')
+                if 'eval/gsm8k/flexible' in run.summary:
+                    # print(f'skipping run {run_str} because model was already evaluated')
                     continue
                 if not any([(gf == run.group) if exact_filter else (gf in run.group) for gf in group_filters]):
                     # print(f'skipping run {run_str} because group does not contain any string from "{group_filters}"')
@@ -87,10 +89,12 @@ def main():
                         f'wandb_job_type={run.job_type}',
                         f'wandb_name={run.name}',
                         f'wandb_run_id={run.id}',
+                        f'shots={args.shots}',
                         f'task={task}',
                         f'batch_size={BATCH_SIZE}',
                     ])
                 )
+                # break
             # end for run
         # end for task
     # end for (version, size)

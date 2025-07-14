@@ -27,6 +27,7 @@ def get_arg_parse():
     parser.add_argument('--wandb_run_id',   type=str, default=None, required=False, help='The run_id of the wandb job.')
     parser.add_argument('--task',           type=str, default=None, required=False, help='The task to evaluate the model on')
     parser.add_argument('--batch_size',     type=int, default=None, required=False, help='The batch size to use for evaluation.')
+    parser.add_argument('--shots',          type=int, default=0,    required=False, help='Value to be used for num_fewshots')
     parser.add_argument('--out_folder',     type=str, default=None, required=False, help='A placeholder for GridSearcher')
     args = parser.parse_args()
 
@@ -64,7 +65,7 @@ def model_eval(args):
 
     print('Evaluating model...')
 
-    eval_metrics_file = os.path.join(ft_model_path, 'eval', f'{args.task}_eval_metrics.json')
+    eval_metrics_file = os.path.join(ft_model_path, 'eval', f'{args.task}_shots={args.shots}_eval_metrics.json')
 
     print(f'\n\n{eval_metrics_file=}\n\n')
 
@@ -100,17 +101,18 @@ def model_eval(args):
         strict, strict_std, flexible, flexible_std = evaluate_model(
             ft_model_path=ft_model_path,
             task=args.task,
-            batch_size=args.batch_size)
+            batch_size=args.batch_size,
+            num_fewshot=args.shots)
         time_eval_end = time.time()
 
         eval_data = {
             # f'eval/{args.task}/acc': acc,
             # f'eval/{args.task}/acc-std': acc_std,
-            f'eval/{args.task}/strict': strict,
-            f'eval/{args.task}/strict-std': strict_std,
-            f'eval/{args.task}/flexible': flexible,
-            f'eval/{args.task}/flexible-std': flexible_std,
-            f'eval/{args.task}/elapsed': convert_seconds_to_hours_minutes_seconds(time_eval_end - time_eval_start)
+            f'eval/{args.task}/shots={args.shots}/strict': strict,
+            f'eval/{args.task}/shots={args.shots}/strict-std': strict_std,
+            f'eval/{args.task}/shots={args.shots}/flexible': flexible,
+            f'eval/{args.task}/shots={args.shots}/flexible-std': flexible_std,
+            f'eval/{args.task}/shots={args.shots}/elapsed': convert_seconds_to_hours_minutes_seconds(time_eval_end - time_eval_start)
         }
     # end if-else
     print(f'{eval_data=}')
