@@ -27,7 +27,7 @@ def get_arg_parse():
     parser.add_argument('--wandb_run_id',   type=str, default=None, required=False, help='The run_id of the wandb job.')
     parser.add_argument('--task',           type=str, default=None, required=False, help='The task to evaluate the model on')
     parser.add_argument('--batch_size',     type=int, default=None, required=False, help='The batch size to use for evaluation.')
-    parser.add_argument('--shots',          type=int, default=0,    required=False, help='Value to be used for num_fewshots')
+    parser.add_argument('--shots',          type=int, default=None, required=False, help='Value to be used for num_fewshots')
     parser.add_argument('--out_folder',     type=str, default=None, required=False, help='A placeholder for GridSearcher')
     args = parser.parse_args()
 
@@ -39,9 +39,8 @@ def get_arg_parse():
             value = '='.join(split[1:])
             setattr(args, key, value)
 
-    # if '_' in args.wandb_name:
-    #     args.wandb_name = args.wandb_name.split('_')[0]
-
+    if '_' in args.wandb_name:
+        args.wandb_name = args.wandb_name.split('_')[0]
     return args
 
 def model_eval(args):
@@ -102,7 +101,7 @@ def model_eval(args):
             ft_model_path=ft_model_path,
             task=args.task,
             batch_size=args.batch_size,
-            num_fewshot=args.shots)
+            num_fewshot=int(args.shots))
         time_eval_end = time.time()
 
         eval_data = {
