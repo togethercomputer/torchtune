@@ -10,7 +10,6 @@ from typing import Tuple, List, Dict, Optional, Union
 import psutil
 import os
 import functools
-import argparse
 
 
 def setup_distributed(rank: int, world_size: int, backend: str = 'nccl'):
@@ -48,16 +47,19 @@ def warmup_memory_allocation(L: int, E: int, R: int, C: int, r: int, device_mesh
     dummy_a = torch.randn(E, R, r, device=device)
     dummy_b = torch.randn(E, r, C, device=device)
 
-    # Create distributed tensors for warmup
-    dtensor_a = DTensor.from_local(dummy_a, device_mesh, [Replicate(), Shard(1), Replicate()])
-    dtensor_b = DTensor.from_local(dummy_b, device_mesh, [Replicate(), Shard(1), Replicate()])
+    # Create distributed tensors for warmup - shard on second dimension only
+    dtensor_a = DTensor.from_local(dummy_a, device_mesh, [Shard(1)])
+    dtensor_b = DTensor.from_local(dummy_b, device_mesh, [Shard(1)])
 
-    # Create dummy 2D tensors
-    dummy_2d = torch.randn(R, r, device=device)
-    dtensor_2d = DTensor.from_local(dummy_2d, device_mesh, [Shard(0), Replicate()])
+    # Create dummy 2D tensors - shard on first dimension only
+    dummy_2d_a = torch.randn(R, r, device=device)
+    dummy_2d_b = torch.randn(r, C, device=device)
+    dtensor_2d_a = DTensor.from_local(dummy_2d_a, device_mesh, [Shard(0)])
+    dtensor_2d_b = DTensor.from_local(dummy_2d_b, device_mesh, [Shard(0)])
 
     # Clean up
-    del dummy_a, dummy_b, dummy_2d, dtensor_a, dtensor_b, dtensor_2d
+    del dummy_a, dummy_b, dummy_2d_a, dummy_2d_b
+    del dtensor_a, dtensor_b, dtensor_2d_a, dtensor_2d_b
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -87,14 +89,14 @@ def allocate_individual_adapters_fsdp2(L: int, E: int, R: int, C: int, r: int, d
         experts = []
         for expert_idx in range(E):
             # Create local tensors
-            A_local = torch.randn(R, r, device=device, dtype=torch.float32)
-            B_local = torch.randn(r, C, device=device, dtype=torch.float32)
+            A_local = torch.randn(R, r, device=device, dtype=torch.bfloat16)
+            B_local = torch.randn(r, C, device=device, dtype=torch.bfloat16)
 
-            # Create distributed tensors with sharding on first dimension (rows)
-            # A matrix: shard on rows (dimension 0)
-            A_dtensor = DTensor.from_local(A_local, device_mesh, [Shard(0), Replicate()])
-            # B matrix: shard on rows (dimension 0)
-            B_dtensor = DTensor.from_local(B_local, device_mesh, [Shard(0), Replicate()])
+            # Create distributed tensors with sharding on first dimension only
+            # A matrix (R, r): shard on rows (dimension 0)
+            A_dtensor = DTensor.from_local(A_local, device_mesh, [Shard(0)])
+            # B matrix (r, C): shard on rows (dimension 0)
+            B_dtensor = DTensor.from_local(B_local, device_mesh, [Shard(0)])
 
             experts.append((A_dtensor, B_dtensor))
         layers.append(experts)
@@ -123,14 +125,14 @@ def allocate_3D_adapters_fsdp2(L: int, E: int, R: int, C: int, r: int, device_me
 
     for layer_idx in range(L):
         # Create local 3D tensors
-        A_local = torch.randn(E, R, r, device=device, dtype=torch.float32)
-        B_local = torch.randn(E, r, C, device=device, dtype=torch.float32)
+        A_local = torch.randn(E, R, r, device=device, dtype=torch.bfloat16)
+        B_local = torch.randn(E, r, C, device=device, dtype=torch.bfloat16)
 
-        # Create distributed tensors with sharding on second dimension
+        # Create distributed tensors with sharding on second dimension only
         # A matrix (E, R, r): shard on R dimension (dimension 1)
-        A_dtensor = DTensor.from_local(A_local, device_mesh, [Replicate(), Shard(1), Replicate()])
+        A_dtensor = DTensor.from_local(A_local, device_mesh, [Shard(1)])
         # B matrix (E, r, C): shard on r dimension (dimension 1)
-        B_dtensor = DTensor.from_local(B_local, device_mesh, [Replicate(), Shard(1), Replicate()])
+        B_dtensor = DTensor.from_local(B_local, device_mesh, [Shard(1)])
 
         layers.append((A_dtensor, B_dtensor))
 
@@ -148,7 +150,7 @@ def get_distributed_memory_usage() -> float:
 
 
 def benchmark_allocation_method_fsdp2(allocation_func, L: int, E: int, R: int, C: int, r: int,
-                                      device_mesh: DeviceMesh, T: int = 10) -> Dict[str, float]:
+                                      device_mesh: DeviceMesh, trials: int = 10) -> Dict[str, float]:
     """
     Benchmark a specific allocation method with FSDP-2.
 
@@ -156,7 +158,7 @@ def benchmark_allocation_method_fsdp2(allocation_func, L: int, E: int, R: int, C
         allocation_func: Function to benchmark
         L, E, R, C, r: Parameters for allocation
         device_mesh: Device mesh for distributed operations
-        T: Number of trials
+        trials: Number of trials
 
     Returns:
         Dictionary containing timing and memory statistics
@@ -164,7 +166,7 @@ def benchmark_allocation_method_fsdp2(allocation_func, L: int, E: int, R: int, C
     times = []
     memory_usage = []
 
-    for trial in range(T):
+    for trial in range(trials):
         # Clear memory before each trial
         gc.collect()
         if torch.cuda.is_available():
@@ -180,7 +182,11 @@ def benchmark_allocation_method_fsdp2(allocation_func, L: int, E: int, R: int, C
         # Time the allocation
         start_time = time.perf_counter()
 
-        result = allocation_func(L, E, R, C, r, device_mesh)
+        try:
+            result = allocation_func(L, E, R, C, r, device_mesh)
+        except Exception as e:
+            print(f"Rank {dist.get_rank()}: Error during allocation - {e}")
+            raise
 
         # Ensure allocation is complete across all processes
         dist.barrier()
@@ -211,119 +217,131 @@ def benchmark_allocation_method_fsdp2(allocation_func, L: int, E: int, R: int, C
     }
 
 
-def run_distributed_benchmark(rank: int, world_size: int):
+def run_distributed_benchmark(rank: int, world_size: int, configs: dict, trials: int):
     """Run distributed benchmarks on a single process."""
 
-    # Setup distributed environment
-    setup_distributed(rank, world_size)
+    try:
+        # Setup distributed environment
+        setup_distributed(rank, world_size)
 
-    # Create device mesh for FSDP-2
-    device_mesh = create_device_mesh(world_size)
-
-    # Test configurations
-    configs = [
-        {'L': 4, 'E': 8, 'R': 512, 'C': 512, 'r': 16},
-        {'L': 8, 'E': 16, 'R': 1024, 'C': 1024, 'r': 32},
-        {'L': 12, 'E': 32, 'R': 2048, 'C': 2048, 'r': 64},
-        {'L': 6, 'E': 64, 'R': 1024, 'C': 1024, 'r': 32},
-    ]
-
-    T = 15  # Number of trials per configuration
-
-    if rank == 0:
-        print("LoRA Adapter FSDP-2 Distributed Memory Allocation Benchmark")
-        print("=" * 70)
-        print(f"World Size: {world_size}")
-        print(f"Device: {'CUDA' if torch.cuda.is_available() else 'CPU'}")
-        print(f"Number of trials per configuration: {T}")
-        print()
-
-    for i, config in enumerate(configs):
-        L, E, R, C, r = config['L'], config['E'], config['R'], config['C'], config['r']
+        # Create device mesh for FSDP-2
+        device_mesh = create_device_mesh(world_size)
 
         if rank == 0:
-            print(f"Configuration {i + 1}: L={L}, E={E}, R={R}, C={C}, r={r}")
-            print(f"Total parameters per method: {L * E * (R * r + r * C):,}")
-            print(f"Parameters per rank: {L * E * (R * r + r * C) // world_size:,}")
-            print("-" * 50)
-
-        # Warmup
-        warmup_memory_allocation(L, E, R, C, r, device_mesh)
-
-        # Benchmark individual adapters
-        if rank == 0:
-            print("Benchmarking individual adapters with FSDP-2...")
-
-        individual_stats = benchmark_allocation_method_fsdp2(
-            allocate_individual_adapters_fsdp2, L, E, R, C, r, device_mesh, T
-        )
-
-        # Benchmark 3D adapters
-        if rank == 0:
-            print("Benchmarking 3D adapters with FSDP-2...")
-
-        tensor_3d_stats = benchmark_allocation_method_fsdp2(
-            allocate_3D_adapters_fsdp2, L, E, R, C, r, device_mesh, T
-        )
-
-        # Gather results from all ranks
-        all_individual_times = [None] * world_size
-        all_3d_times = [None] * world_size
-        all_individual_memory = [None] * world_size
-        all_3d_memory = [None] * world_size
-
-        dist.all_gather_object(all_individual_times, individual_stats['mean_time'])
-        dist.all_gather_object(all_3d_times, tensor_3d_stats['mean_time'])
-        dist.all_gather_object(all_individual_memory, individual_stats['mean_memory'])
-        dist.all_gather_object(all_3d_memory, tensor_3d_stats['mean_memory'])
-
-        # Display results from rank 0
-        if rank == 0:
-            print(f"\nResults (averaged across {world_size} ranks):")
-
-            avg_individual_time = np.mean(all_individual_times)
-            avg_3d_time = np.mean(all_3d_times)
-            avg_individual_memory = np.mean(all_individual_memory)
-            avg_3d_memory = np.mean(all_3d_memory)
-
-            print(f"Individual Adapters (2D, sharded on rows):")
-            print(f"  Time: {avg_individual_time:.6f}s ± {np.std(all_individual_times):.6f}s")
-            print(f"  Memory per rank: {avg_individual_memory:.2f}MB ± {np.std(all_individual_memory):.2f}MB")
-            print(f"  Total memory: {avg_individual_memory * world_size:.2f}MB")
-
-            print(f"3D Adapters (sharded on 2nd dimension):")
-            print(f"  Time: {avg_3d_time:.6f}s ± {np.std(all_3d_times):.6f}s")
-            print(f"  Memory per rank: {avg_3d_memory:.2f}MB ± {np.std(all_3d_memory):.2f}MB")
-            print(f"  Total memory: {avg_3d_memory * world_size:.2f}MB")
-
-            # Calculate speedup
-            speedup = avg_individual_time / avg_3d_time if avg_3d_time > 0 else 1.0
-            memory_ratio = avg_individual_memory / avg_3d_memory if avg_3d_memory > 0 else 1.0
-
-            print(f"\nDistributed Performance Comparison:")
-            print(f"  3D Adapters are {speedup:.2f}x {'faster' if speedup > 1 else 'slower'} than Individual Adapters")
-            print(f"  Memory usage ratio (Individual/3D): {memory_ratio:.2f}x")
-            print(f"  Communication efficiency: 3D adapters have better locality")
-            print()
+            print("LoRA Adapter FSDP-2 Distributed Memory Allocation Benchmark")
             print("=" * 70)
+            print(f"World Size: {world_size}")
+            print(f"Device: {'CUDA' if torch.cuda.is_available() else 'CPU'}")
+            print(f"Number of trials per configuration: {trials}")
             print()
+            print("Sharding Strategy:")
+            print("\t- 2D Individual Adapters: Shard on first dimension (rows)")
+            print("\t- 3D Adapters: Shard on second dimension (R for A, r for B)")
+            print("=" * 70)
 
-    # Cleanup
-    cleanup_distributed()
+        for i, config in enumerate(configs):
+            L, E, R, C, r = config['L'], config['E'], config['R'], config['C'], config['r']
+
+            # Check if sharding is feasible
+            if R % world_size != 0 or r % world_size != 0:
+                if rank == 0:
+                    print(f"Skipping config {i + 1}: R={R} or r={r} not divisible by world_size={world_size}")
+                continue
+
+            if rank == 0:
+                print(f"Configuration {i + 1}: L={L}, E={E}, R={R}, C={C}, r={r}")
+                print(f"Total parameters per method: {L * E * (R * r + r * C):,}")
+                print(f"Parameters per rank: {L * E * (R * r + r * C) // world_size:,}")
+                print(f"Sharding dimensions:")
+                print(f"  - 2D: A({R}, {r}) -> A({R // world_size}, {r}) per rank")
+                print(f"  - 2D: B({r}, {C}) -> B({r // world_size}, {C}) per rank")
+                print(f"  - 3D: A({E}, {R}, {r}) -> A({E}, {R // world_size}, {r}) per rank")
+                print(f"  - 3D: B({E}, {r}, {C}) -> B({E}, {r // world_size}, {C}) per rank")
+                print("-" * 50)
+
+            # Warmup
+            warmup_memory_allocation(L, E, R, C, r, device_mesh)
+
+            # Benchmark individual adapters
+            if rank == 0:
+                print("Benchmarking individual adapters with FSDP-2...")
+
+            individual_stats = benchmark_allocation_method_fsdp2(allocate_individual_adapters_fsdp2, L, E, R, C, r, device_mesh, trials)
+
+            # Benchmark 3D adapters
+            if rank == 0:
+                print("Benchmarking 3D adapters with FSDP-2...")
+
+            tensor_3d_stats = benchmark_allocation_method_fsdp2(
+                allocate_3D_adapters_fsdp2, L, E, R, C, r, device_mesh, trials
+            )
+
+            # Gather results from all ranks
+            all_individual_times = [None] * world_size
+            all_3d_times = [None] * world_size
+            all_individual_memory = [None] * world_size
+            all_3d_memory = [None] * world_size
+
+            dist.all_gather_object(all_individual_times, individual_stats['mean_time'])
+            dist.all_gather_object(all_3d_times, tensor_3d_stats['mean_time'])
+            dist.all_gather_object(all_individual_memory, individual_stats['mean_memory'])
+            dist.all_gather_object(all_3d_memory, tensor_3d_stats['mean_memory'])
+
+            # Display results from rank 0
+            if rank == 0:
+                print(f"\nResults (averaged across {world_size} ranks):")
+
+                avg_individual_time = np.mean(all_individual_times)
+                avg_3d_time = np.mean(all_3d_times)
+                avg_individual_memory = np.mean(all_individual_memory)
+                avg_3d_memory = np.mean(all_3d_memory)
+
+                print(f"Individual Adapters (2D, sharded on first dim):")
+                print(f"\tTime: {avg_individual_time:.6f}s ± {np.std(all_individual_times):.6f}s ({trials} trials)")
+                print(f"\tMemory per rank: {avg_individual_memory:.2f}MB ± {np.std(all_individual_memory):.2f}MB")
+                print(f"\tTotal memory: {avg_individual_memory * world_size:.2f}MB")
+
+                print(f"3D Adapters (sharded on second dim):")
+                print(f"\tTime: {avg_3d_time:.6f}s ± {np.std(all_3d_times):.6f}s ({trials} trials)")
+                print(f"\tMemory per rank: {avg_3d_memory:.2f}MB ± {np.std(all_3d_memory):.2f}MB")
+                print(f"\tTotal memory: {avg_3d_memory * world_size:.2f}MB")
+
+                # Calculate speedup
+                speedup = avg_individual_time / avg_3d_time if avg_3d_time > 0 else 1.0
+                memory_ratio = avg_individual_memory / avg_3d_memory if avg_3d_memory > 0 else 1.0
+
+                print(f"\nDistributed Performance Comparison:")
+                print(f"\t3D Adapters are {speedup:.2f}x {'faster' if speedup > 1 else 'slower'} than Individual Adapters")
+                print(f"\tMemory usage ratio (Individual/3D): {memory_ratio:.2f}x")
+                print(f"\tCommunication efficiency: 3D adapters have better locality")
+                print("=" * 70)
+                print()
+
+    except Exception as e:
+        print(f"Rank {rank}: Error in distributed benchmark - {e}")
+        raise
+    finally:
+        # Cleanup
+        if dist.is_initialized():
+            cleanup_distributed()
 
 
-def run_single_machine_benchmark(world_size: int = None):
+def run_single_machine_benchmark(world_size: int = None, configs: dict = None, trials: int = None):
     """Run benchmark on a single machine with multiple processes."""
     if world_size is None:
-        world_size = torch.cuda.device_count() if torch.cuda.is_available() else 2
+        world_size = min(torch.cuda.device_count() if torch.cuda.is_available() else 2, 8)
 
     print(f"Starting single machine benchmark with {world_size} processes...")
 
     # Use torch.multiprocessing to spawn processes
-    mp.spawn(run_distributed_benchmark, args=(world_size,), nprocs=world_size, join=True)
+    try:
+        mp.spawn(run_distributed_benchmark, args=(world_size, configs, trials), nprocs=world_size, join=True)
+    except Exception as e:
+        print(f"Error in multiprocessing spawn: {e}")
+        raise
 
 
-def run_multi_machine_benchmark():
+def run_multi_machine_benchmark(configs, trials):
     """
     Run benchmark across multiple machines.
     This function should be called on each machine with appropriate environment variables set.
@@ -341,22 +359,24 @@ def run_multi_machine_benchmark():
     # export RANK=<CURRENT_MACHINE_RANK>
     # export WORLD_SIZE=<TOTAL_NUMBER_OF_MACHINES>
 
-    run_distributed_benchmark(rank, world_size)
+    run_distributed_benchmark(rank, world_size, configs, trials)
 
 
 class DistributedLoRABenchmark:
     """Class to manage distributed LoRA adapter benchmarking."""
 
-    def __init__(self, world_size: int = None):
-        self.world_size = world_size or (torch.cuda.device_count() if torch.cuda.is_available() else 2)
+    def __init__(self, world_size: int = None, configs: dict = None, trials: int = 10):
+        self.world_size = world_size or min(torch.cuda.device_count() if torch.cuda.is_available() else 2, 8)
+        self.configs = {'L': 58, 'E': 256, 'R': 7168, 'C': 2048, 'r': 16} if configs is None else configs
+        self.trials = trials
 
     def run_single_machine(self):
         """Run benchmark on single machine."""
-        run_single_machine_benchmark(self.world_size)
+        run_single_machine_benchmark(self.world_size, self.configs, self.trials)
 
     def run_multi_machine(self):
         """Run benchmark across multiple machines."""
-        run_multi_machine_benchmark()
+        run_multi_machine_benchmark(self.configs, self.trials)
 
     @staticmethod
     def get_optimal_sharding_config(L: int, E: int, R: int, C: int, r: int, world_size: int) -> Dict[str, any]:
@@ -364,34 +384,44 @@ class DistributedLoRABenchmark:
         Get optimal sharding configuration recommendations.
         """
         total_params_2d = L * E * (R * r + r * C)
+        total_params_3d = L * (E * R * r + E * r * C)
+
+        # Check if sharding is feasible
+        can_shard_2d = R % world_size == 0 and r % world_size == 0
+        can_shard_3d = R % world_size == 0 and r % world_size == 0
 
         return {
             'total_parameters': total_params_2d,
-            'parameters_per_rank': total_params_2d // world_size,
-            'recommended_method': '3D' if E * R > world_size else '2D',
-            'memory_per_rank_mb': (total_params_2d * 4) / (world_size * 1024 * 1024),  # 4 bytes per float32
-            'sharding_efficiency': min(1.0, (E * R) / world_size),
+            'parameters_per_rank': total_params_2d // world_size if can_shard_2d else total_params_2d,
+            'recommended_method': '3D' if can_shard_3d and E > 1 else '2D',
+            'memory_per_rank_mb': (total_params_2d * 4) / (world_size * 1024 * 1024) if can_shard_2d else (total_params_2d * 4) / (1024 * 1024),
+            'sharding_efficiency_2d': 1.0 if can_shard_2d else 0.0,
+            'sharding_efficiency_3d': 1.0 if can_shard_3d else 0.0,
+            'can_shard_2d': can_shard_2d,
+            'can_shard_3d': can_shard_3d,
+            'suggested_r': ((r // world_size) + 1) * world_size if r % world_size != 0 else r,
+            'suggested_R': ((R // world_size) + 1) * world_size if R % world_size != 0 else R,
         }
 
 
 if __name__ == "__main__":
+    import argparse
+
     parser = argparse.ArgumentParser(description='Run distributed LoRA adapter benchmark')
     parser.add_argument('--mode', choices=['single', 'multi'], default='single', help='Run on single machine or multiple machines')
     parser.add_argument('--world-size', type=int, default=None, help='Number of processes/machines to use')
     args = parser.parse_args()
 
-    benchmark = DistributedLoRABenchmark(args.world_size)
+    ####################
+    ##### SETTINGS
+    trials = 10
+    configs = [{'L': L, 'E': 256, 'R': 7168, 'C': 2048, 'r': r} for L in [58] for r in [16]]
+    #####
+    ####################
+
+    benchmark = DistributedLoRABenchmark(args.world_size, configs, trials)
 
     if args.mode == 'single':
         benchmark.run_single_machine()
     else:
         benchmark.run_multi_machine()
-
-    # Example usage for getting optimal configuration
-    if dist.is_initialized() and dist.get_rank() == 0:
-        config = DistributedLoRABenchmark.get_optimal_sharding_config(
-            L=8, E=32, R=1024, C=1024, r=32, world_size=8
-        )
-        print("\nOptimal Configuration Recommendation:")
-        for key, value in config.items():
-            print(f"  {key}: {value}")
