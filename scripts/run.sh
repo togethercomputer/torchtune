@@ -2,14 +2,15 @@
 
 clear
 
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:False
+#export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-#MODEL="3.1_8B"
-MODEL="3.2_1B"
+#MODEL_VERSION_SIZE="3.1-8B"
+#MODEL_VERSION_SIZE="3.2-1B"
+MODEL_VERSION_SIZE="3.2-3B"
 
-CONFIG="recipes/configs/imodoranu/llama${MODEL}_full_ft_multi_gpu.yaml"
+CONFIG="recipes/configs/imodoranu/llama${MODEL_VERSION_SIZE}B_full_ft_multi_gpu.yaml"
 
-# tune run full_finetune_single_device --config "recipes/configs/imodoranu/llama${MODEL}_full_ft_single_gpu.yaml"
+# tune run full_finetune_single_device --config "recipes/configs/imodoranu/llama${MODEL_VERSION_SIZE}_full_ft_single_gpu.yaml"
 
 #OPTIMIZER=adamw
 #OPTIMIZER=frugal_micro_adam_torch_fsdp2
@@ -18,13 +19,15 @@ CONFIG="recipes/configs/imodoranu/llama${MODEL}_full_ft_multi_gpu.yaml"
 #OPTIMIZER=custom_ema_adamw
 
 for OPTIMIZER in adamw; do
-    for LR in 1e-5 2e-5 3e-5; do # 5e-5 4e-5 3e-5 2e-5 1e-5 9e-6 8e-6 7e-6
+    for LR in 3e-5 2e-5 1e-5 9e-6 8e-6 7e-6 6e-6 5e-6; do # 5e-5 4e-5 3e-5 2e-5 1e-5 9e-6 8e-6 7e-6
         tune run \
             --nproc_per_node 8 \
             full_finetune_distributed \
             --config $CONFIG \
+            model_version_size=${MODEL_VERSION_SIZE} \
             optimizer_name=${OPTIMIZER} \
-            learning_rate=${LR}
+            learning_rate=${LR} \
+            weight_decay=0
     done
 done
 
