@@ -20,7 +20,7 @@
 
 ##################################################
 ########## START CUSTOM KEYS
-
+model_version_size: 3.2-3
 optimizer_name: adamw
 dataset_split: train_1M
 
@@ -108,7 +108,7 @@ optimizer:
         ema_alpha: 0
 
 wandb:
-    project: ionut_torchtune_llama3.2-1B_full_ft_multi_gpu_coswmp
+    project: ionut_torchtune_llama${model_version_size}B_full_ft_multi_gpu_coswmp
     entity: ionutmodo
     job_type: lr=${learning_rate}
     name: seed=${seed}
@@ -151,7 +151,7 @@ dataset:
 # Tokenizer
 tokenizer:
     _component_: torchtune.models.llama3.llama3_tokenizer
-    path: /data/imodoranu/huggingface/Llama-3.2-3B-Instruct/original/tokenizer.model
+    path: /data/imodoranu/huggingface/Llama-${model_version_size}B-Instruct/original/tokenizer.model
     max_seq_len: null
 
 
@@ -169,7 +169,7 @@ model:
 
 checkpointer:
     _component_: torchtune.training.FullModelHFCheckpointer
-    checkpoint_dir: /data/imodoranu/huggingface/Llama-3.2-3B-Instruct/
+    checkpoint_dir: /data/imodoranu/huggingface/Llama-${model_version_size}B-Instruct/
     checkpoint_files: [
         model-00001-of-00002.safetensors,
         model-00002-of-00002.safetensors,
