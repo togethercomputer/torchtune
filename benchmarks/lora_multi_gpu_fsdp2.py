@@ -14,8 +14,6 @@ import functools
 
 def setup_distributed(rank: int, world_size: int, backend: str = 'nccl'):
     """Initialize distributed training setup."""
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
 
     if backend == 'nccl' and not torch.cuda.is_available():
         backend = 'gloo'
@@ -23,6 +21,7 @@ def setup_distributed(rank: int, world_size: int, backend: str = 'nccl'):
     dist.init_process_group(backend, rank=rank, world_size=world_size)
 
     if torch.cuda.is_available():
+        print(f'rank #{rank}: device_count = {torch.cuda.device_count()}')
         torch.cuda.set_device(rank % torch.cuda.device_count())
 
 
@@ -405,6 +404,10 @@ class DistributedLoRABenchmark:
 
 
 if __name__ == "__main__":
+    """
+    torchrun --nnodes=2 --nproc-per-node=8 --node-rank=0 --master-addr=10.56.13.69 --master-port=29500 lora_multi_gpu_fsdp2.py --mode multi
+    torchrun --nnodes=2 --nproc-per-node=8 --node-rank=1 --master-addr=10.56.13.69 --master-port=29500 lora_multi_gpu_fsdp2.py --mode multi
+    """
     import argparse
 
     parser = argparse.ArgumentParser(description='Run distributed LoRA adapter benchmark')
@@ -415,7 +418,7 @@ if __name__ == "__main__":
     ####################
     ##### SETTINGS
     trials = 10
-    configs = [{'L': L, 'E': 256, 'R': 7168, 'C': 2048, 'r': r} for L in [58] for r in [16]]
+    configs = [{'L': L, 'E': 256, 'R': 7168, 'C': 2048, 'r': r} for L in [58] for r in [16, 256]]
     #####
     ####################
 
