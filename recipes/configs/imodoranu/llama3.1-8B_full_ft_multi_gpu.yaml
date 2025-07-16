@@ -18,61 +18,104 @@
 # best to use 8B_full_single_device.yaml for those cases
 
 
-##################################################
-########## START CUSTOM KEYS
-
-dataset_split: train_1M
-batch_size: 2
 optimizer_name: adamw
-learning_rate: 1e-5
+dataset_split: train_1M
 
-batch_size_split: bs=${batch_size}_split=${dataset_split} # used as a shortcut in the config
-root_dir: /data/imodoranu/results/torchtune/Llama3.2-1B-Instruct/full_ft_distributed
+batch_size: 2
+gradient_accumulation_steps: 32
+
+learning_rate: 1e-5
+weight_decay: 0.01
+
+# Training
+seed: 42
+shuffle: True
+epochs: 1
+max_steps_per_epoch: null
+
+# Environment
+device: cuda
+dtype: bf16
+
+# Memory management
+enable_activation_checkpointing: False  # True reduces memory
+enable_activation_offloading: False  # True reduces memory
+clip_grad_norm: 1
+compile: False  # torch.compile the model + loss, True increases speed + decreases memory
+optimizer_in_bwd: False  # True saves memory. Requires gradient_accumulation_steps=1
+
+extra: wd=${weight_decay}_bs=${batch_size}_gas=${gradient_accumulation_steps}_cg=${clip_grad_norm}_split=${dataset_split} # used as a shortcut in the config
+root_dir: /data/imodoranu/results
 output_dir: ${root_dir}/${wandb.project}/${wandb.group}/${wandb.job_type}/${wandb.name}
 
 optimizer:
     adamw:
         _component_: torch.optim.AdamW
         lr: ${learning_rate}
-        weight_decay: 0
+        weight_decay: ${weight_decay}
         betas:
             - 0.9
             - 0.999
         eps: 1e-8
         fused: True
-    frugal_micro_adam_fsdp2:
-        _component_: memory_efficient_optimizers.FrugalMicroAdamTorchFSDP2
+    micro_adam_cuda_fsdp2:
+        _component_: memory_efficient_optimizers.MicroAdamCUDAFSDP2
         lr: ${learning_rate}
-        weight_decay: 0
+        weight_decay: ${weight_decay}
         betas:
             - 0.9
             - 0.999
         eps: 1e-8
         num_grads: 10
         density: 0.01
+        quant_block_size: 64
+        decay_all_weights: 1
+    frugal_micro_adam_torch_fsdp2:
+        _component_: memory_efficient_optimizers.FrugalMicroAdamTorchFSDP2
+        lr: ${learning_rate}
+        weight_decay: ${weight_decay}
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        num_grads: 10
+        density: 0.01
+        use_sign_sgd: 1
         normalization: none
+    frugal_micro_adam_cuda_fsdp2:
+        _component_: memory_efficient_optimizers.FrugalMicroAdamCUDAFSDP2
+        lr: ${learning_rate}
+        weight_decay: ${weight_decay}
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        num_grads: 10
+        density: 0.01
     custom_ema_adamw:
         _component_: memory_efficient_optimizers.CustomEmaAdamW
         lr: ${learning_rate}
-        weight_decay: 0
+        weight_decay: ${weight_decay}
         betas:
             - 0.9
             - 0.999
         eps: 1e-8
         ema_schedule: delayed
         ema_decay: 10
-        ema_alpha: 0.001
+        ema_alpha: 0
 
 wandb:
-    project: ionut_torchtune_llama3.1-8B_full_ft_multi_gpu
+    project: ionut_torchtune_llama${model_version_size}_full_ft_multi_gpu_coswmp
     entity: ionutmodo
     job_type: lr=${learning_rate}
     name: seed=${seed}
     group: ${wandb.groups.${optimizer_name}}
     groups:
-        adamw: adamw_${batch_size_split}
-        frugal_micro_adam_fsdp2: frugal-micro-adam_${batch_size_split}_ng=${optimizer.frugal_micro_adam_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_fsdp2.density}_norm=${optimizer.frugal_micro_adam_fsdp2.normalization}
-        custom_ema_adamw: custom-ema-adamw_${batch_size_split}_sched=${optimizer.custom_ema_adamw.ema_schedule}-${optimizer.custom_ema_adamw.ema_decay}_a=${optimizer.custom_ema_adamw.ema_alpha}
+        adamw: adamw_${extra}
+        micro_adam_cuda_fsdp2: micro-adam_${extra}_ng=${optimizer.micro_adam_cuda_fsdp2.num_grads}_k=${optimizer.micro_adam_cuda_fsdp2.density}_qbs=${optimizer.micro_adam_cuda_fsdp2.quant_block_size}_daw=${optimizer.micro_adam_cuda_fsdp2.decay_all_weights}
+        frugal_micro_adam_cuda_fsdp2: frugal-micro-adam-cuda_${extra}_ng=${optimizer.frugal_micro_adam_cuda_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_cuda_fsdp2.density}
+        frugal_micro_adam_torch_fsdp2: frugal-micro-adam-torch_${extra}_ng=${optimizer.frugal_micro_adam_torch_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_torch_fsdp2.density}_norm=${optimizer.frugal_micro_adam_torch_fsdp2.normalization}
+        custom_ema_adamw: custom-ema-adamw_${extra}_sched=${optimizer.custom_ema_adamw.ema_schedule}-${optimizer.custom_ema_adamw.ema_decay}_a=${optimizer.custom_ema_adamw.ema_alpha}
 
 # Logging
 metric_logger:
@@ -91,36 +134,13 @@ log_level: INFO  # DEBUG, WARN, etc.
 
 lr_scheduler:
     _component_: torchtune.training.lr_schedulers.get_cosine_schedule_with_warmup
-    num_warmup_steps: 6250 # 10% of training
-
-# Training
-seed: 42
-shuffle: True
-epochs: 1
-max_steps_per_epoch: null
-gradient_accumulation_steps: 32  # Use to increase effective batch size
-
-# Environment
-device: cuda
-dtype: bf16
-
-# Memory management
-enable_activation_checkpointing: True  # True reduces memory
-enable_activation_offloading: False  # True reduces memory
-custom_sharded_layers: ['tok_embeddings', 'output']  # Layers to shard separately (useful for large vocab size models). Lower Memory, but lower speed.
-clip_grad_norm: null
-compile: False  # torch.compile the model + loss, True increases speed + decreases memory
-optimizer_in_bwd: False  # True saves memory. Requires gradient_accumulation_steps=1
-
-#lr_scheduler:
-#    _component_: torchtune.training.lr_schedulers.get_cosine_schedule_with_warmup
-#    num_warmup_steps: 6250 # 10% of training
+    num_warmup_steps: 195 # 10% of training
 
 # Dataset and Sampler
 dataset:
     _component_: torchtune.datasets.open_math_instruct_2_dataset
     packed: False  # True increases speed
-    split: train_1M
+    split: ${dataset_split}
     column_map:
         input: problem
         output: generated_solution
@@ -128,25 +148,24 @@ dataset:
 # Tokenizer
 tokenizer:
     _component_: torchtune.models.llama3.llama3_tokenizer
-    path: /data/imodoranu/huggingface/Meta-Llama-3.1-8B-Instruct/original/tokenizer.model
+    path: /data/imodoranu/huggingface/Llama-${model_version_size}-Instruct/original/tokenizer.model
     max_seq_len: null
-
 
 run_val_every_n_steps: 100  # Change to an integer to enable validation every N steps
 dataset_val:
     _component_: ${dataset._component_}
-    split: ${dataset_split}
+    split: train_2M[:1%]
     column_map:
         input: problem
         output: generated_solution
-batch_size_val: ${batch_size}
+batch_size_val: 1
 
 model:
-    _component_: torchtune.models.llama3_1.llama3_1_8b
+    _component_: torchtune.models.llama3_2.llama3_1_8b
 
 checkpointer:
     _component_: torchtune.training.FullModelHFCheckpointer
-    checkpoint_dir: /data/imodoranu/huggingface/Meta-Llama-3.1-8B-Instruct
+    checkpoint_dir: /data/imodoranu/huggingface/Meta-Llama-${model_version_size}-Instruct
     checkpoint_files: [
         model-00001-of-00004.safetensors,
         model-00002-of-00004.safetensors,
