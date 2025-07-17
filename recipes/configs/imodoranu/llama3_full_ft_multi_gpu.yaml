@@ -29,14 +29,42 @@ extra: wd=${weight_decay}_bs=${batch_size}_gas=${gradient_accumulation_steps}_cg
 root_dir: /data/imodoranu/results
 output_dir: ${root_dir}/${wandb.project}/${wandb.group}/${wandb.job_type}/${wandb.name}
 
+model_factory:
+    "3.1-8B":
+        model_component: torchtune.models.llama3_1.llama3_1_8b
+        tokenizer_path: /data/imodoranu/huggingface/Llama-3.1-8B-Instruct/original/tokenizer.model
+        wandb_project: ionut_torchtune_llama3.1-8B_full_ft_multi_gpu_coswmp
+        checkpointer_checkpoint_files: [
+            model-00001-of-00004.safetensors,
+            model-00002-of-00004.safetensors,
+            model-00003-of-00004.safetensors,
+            model-00004-of-00004.safetensors
+        ]
+    "3.2-1B":
+        model_component: torchtune.models.llama3_2.llama3_2_1b
+        tokenizer_path: /data/imodoranu/huggingface/Llama-3.2-1B-Instruct/original/tokenizer.model
+        wandb_project: ionut_torchtune_llama3.2-1B_full_ft_multi_gpu_coswmp
+        checkpointer_checkpoint_files: [
+            model.safetensors
+        ]
+    "3.2-3B":
+        model_component: torchtune.models.llama3_2.llama3_2_3b
+        tokenizer_path: /data/imodoranu/huggingface/Llama-3.2-3B-Instruct/original/tokenizer.model
+        wandb_project: ionut_torchtune_llama3.2-3B_full_ft_multi_gpu_coswmp
+        checkpointer_checkpoint_files: [
+            model-00001-of-00002.safetensors,
+            model-00002-of-00002.safetensors,
+        ]
+
 wandb:
-    project: ${model_factory.${model_version_size}.wandb_project} # will be populated from model_factory
+    project: ${model_factory[${model_version_size}].wandb_project} # will be populated from model_factory
     entity: ionutmodo
     job_type: lr=${learning_rate}
     name: seed=${seed}
     group: ${wandb.groups.${optimizer_name}}
     groups:
         adamw: adamw_${extra}
+        signsgd: sign-sgd_${extra}
         micro_adam_cuda_fsdp2: micro-adam_${extra}_ng=${optimizer.micro_adam_cuda_fsdp2.num_grads}_k=${optimizer.micro_adam_cuda_fsdp2.density}_qbs=${optimizer.micro_adam_cuda_fsdp2.quant_block_size}_daw=${optimizer.micro_adam_cuda_fsdp2.decay_all_weights}
         frugal_micro_adam_cuda_fsdp2: frugal-micro-adam-cuda_${extra}_ng=${optimizer.frugal_micro_adam_cuda_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_cuda_fsdp2.density}
         frugal_micro_adam_torch_fsdp2: frugal-micro-adam-torch_${extra}_ng=${optimizer.frugal_micro_adam_torch_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_torch_fsdp2.density}_norm=${optimizer.frugal_micro_adam_torch_fsdp2.normalization}
@@ -114,49 +142,22 @@ metric_logger:
 log_every_n_steps: 1
 log_peak_memory_stats: True
 log_level: INFO  # DEBUG, WARN, etc.
-
-model_factory:
-    "3.1-8B":
-        model_component: torchtune.models.llama3_1.llama3_1_8b
-        tokenizer_path: /data/imodoranu/huggingface/Llama-3.1-8B-Instruct/original/tokenizer.model
-        wandb_project: ionut_torchtune_llama3.1-8B_full_ft_multi_gpu_coswmp
-        checkpointer_checkpoint_files: [
-            model-00001-of-00004.safetensors,
-            model-00002-of-00004.safetensors,
-            model-00003-of-00004.safetensors,
-            model-00004-of-00004.safetensors
-        ]
-    "3.2-1B":
-        model_component: torchtune.models.llama3_2.llama3_2_1b
-        tokenizer_path: /data/imodoranu/huggingface/Llama-3.2-1B-Instruct/original/tokenizer.model
-        wandb_project: ionut_torchtune_llama3.2-1B_full_ft_multi_gpu_coswmp
-        checkpointer_checkpoint_files: [
-            model.safetensors
-        ]
-    "3.2-3B":
-        model_component: torchtune.models.llama3_2.llama3_2_3b
-        tokenizer_path: /data/imodoranu/huggingface/Llama-3.2-3B-Instruct/original/tokenizer.model
-        wandb_project: ionut_torchtune_llama3.2-3B_full_ft_multi_gpu_coswmp
-        checkpointer_checkpoint_files: [
-            model-00001-of-00002.safetensors,
-            model-00002-of-00002.safetensors,
-        ]
 ########## END CUSTOM KEYS
 ##################################################
 
 # Tokenizer
 tokenizer:
     _component_: torchtune.models.llama3.llama3_tokenizer
-    path: ${model_factory.${model_version_size}.tokenizer_path} # will be populated from model_factory
+    path: ${model_factory[${model_version_size}].tokenizer_path} # will be populated from model_factory
     max_seq_len: null
 
 model:
-    _component_: ${model_factory.${model_version_size}.model_component} # will be populated from model_factory
+    _component_: ${model_factory[${model_version_size}].model_component} # will be populated from model_factory
 
 checkpointer:
     _component_: torchtune.training.FullModelHFCheckpointer
     checkpoint_dir: /data/imodoranu/huggingface/Llama-${model_version_size}-Instruct
-    checkpoint_files: ${model_factory.${model_version_size}.checkpointer_checkpoint_files} # will be populated from model_factory
+    checkpoint_files: ${model_factory[${model_version_size}].checkpointer_checkpoint_files} # will be populated from model_factory
     recipe_checkpoint: null
     output_dir: ${output_dir}
     model_type: LLAMA3
