@@ -64,7 +64,7 @@ wandb:
     group: ${wandb.groups.${optimizer_name}}
     groups:
         adamw: adamw_${extra}
-        trionosd: trion-osd_${extra}_r=${optimizer.trionosd.ns_rank}_ug=${optimizer.trionosd.ns_update_gap}_o=${optimizer.trionosd.ns_optim}_lr=${optimizer.trionosd.ns_lr}_reg=${optimizer.trionosd.ns_reg_U}-${optimizer.trionosd.ns_reg_V}_alrsf=${optimizer.trionosd.adam_lr_scaling_factor}
+        trionosd: trion-osd_it=${optimizer.trionosd.ns_iters}_${extra}_r=${optimizer.trionosd.ns_rank}_ug=${optimizer.trionosd.ns_update_gap}_o=${optimizer.trionosd.ns_optim}_lr=${optimizer.trionosd.ns_lr}_reg=${optimizer.trionosd.ns_reg_U}-${optimizer.trionosd.ns_reg_V}_alrsf=${optimizer.trionosd.adam_lr_scaling_factor}
         signsgd: sign-sgd_${extra}
         micro_adam_cuda_fsdp2: micro-adam_${extra}_ng=${optimizer.micro_adam_cuda_fsdp2.num_grads}_k=${optimizer.micro_adam_cuda_fsdp2.density}_qbs=${optimizer.micro_adam_cuda_fsdp2.quant_block_size}_daw=${optimizer.micro_adam_cuda_fsdp2.decay_all_weights}
         frugal_micro_adam_cuda_fsdp2: frugal-micro-adam-cuda_${extra}_ng=${optimizer.frugal_micro_adam_cuda_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_cuda_fsdp2.density}
@@ -91,6 +91,7 @@ optimizer:
         eps: 1e-8
         mu: 0.95
         adam_lr_scaling_factor: 100
+        ns_iters: 3
         ns_rank: 0
         ns_update_gap: 50
         ns_optim: raw
