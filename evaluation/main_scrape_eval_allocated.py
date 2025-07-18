@@ -73,7 +73,7 @@ def main():
                 if run.state != 'finished':
                     # print(f'skipping run {run_str} because it is not finished')
                     continue
-                if f'eval/{task}/{args.shots}/flexible' in run.summary:
+                if f'eval/{task}/shots={args.shots}/flexible' in run.summary:
                     # print(f'skipping run {run_str} because model was already evaluated')
                     continue
                 if not any([(gf == run.group) if exact_filter else (gf in run.group) for gf in group_filters]):
