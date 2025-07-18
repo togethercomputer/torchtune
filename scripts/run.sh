@@ -19,8 +19,8 @@ CONFIG="recipes/configs/imodoranu/llama3_full_ft_multi_gpu.yaml"
 #OPTIMIZER=trionosd
 
 for OPTIMIZER in trionosd; do
-    for LR in 1e-3; do #  2e-5 1e-5 9e-6 8e-6 7e-6 6e-6 5e-6; do # 5e-5 4e-5 3e-5 2e-5 1e-5 9e-6 8e-6 7e-6
-        CUDA_VISIBLE_DEVICES=0 tune run \
+    for LR in 1e-2; do # 2e-5 1e-5 9e-6 8e-6 7e-6 6e-6 5e-6; do # 5e-5 4e-5 3e-5 2e-5 1e-5 9e-6 8e-6 7e-6
+        CUDA_VISIBLE_DEVICES=3 tune run \
             --nproc_per_node 1 \
             full_finetune_distributed \
             --config $CONFIG \
@@ -29,7 +29,9 @@ for OPTIMIZER in trionosd; do
             learning_rate=${LR} \
             weight_decay=0 \
             batch_size=8 \
-            gradient_accumulation_steps=64
+            gradient_accumulation_steps=64 \
+            optimizer.trionosd.ns_lr=1e-3 \
+            optimizer.trionosd.ns_iters=10
     done
 done
 
