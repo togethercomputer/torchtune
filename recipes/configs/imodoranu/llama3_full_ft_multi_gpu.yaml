@@ -90,12 +90,12 @@ optimizer:
             - 0.999
         eps: 1e-8
         mu: 0.95
-        ns_rank: 128
+        ns_rank: 0
         ns_update_gap: 50
         ns_optim: signsgd
-        ns_lr: 1e-5
-        ns_reg_U: 1
-        ns_reg_V: 1
+        ns_lr: 1e-3
+        ns_reg_U: 0.1
+        ns_reg_V: 0.1
         max_shape: 64000
     signsgd:
         _component_: memory_efficient_optimizers.SignSGD
