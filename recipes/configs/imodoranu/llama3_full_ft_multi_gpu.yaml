@@ -96,8 +96,8 @@ optimizer:
         ns_update_gap: 50
         ns_optim: raw
         ns_lr: 1e-3
-        ns_reg_U: 0.1
-        ns_reg_V: 0.1
+        ns_reg_U: 20
+        ns_reg_V: 20
         max_shape: 64000
     signsgd:
         _component_: memory_efficient_optimizers.SignSGD
