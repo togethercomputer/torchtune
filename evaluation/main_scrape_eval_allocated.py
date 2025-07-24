@@ -7,6 +7,8 @@ from gridsearcher import GridSearcher, GSExe, GSKeyValSep
 def get_arg_parse():
     parser = argparse.ArgumentParser()
     parser.add_argument('--filter', type=str, required=True)
+    parser.add_argument('--model_version_size', type=str, required=True, default=None,
+                        help="Example: 3.2-1B,3.2-3B")
     parser.add_argument('--exact', type=int, required=False, default=0, choices=[0, 1])
     parser.add_argument('--shots', type=int, required=False, default=0)
     args = parser.parse_args()
@@ -40,12 +42,15 @@ def main():
     # ROOT = '/mnt/beegfs/alistgrp/imodoran/results'
     ROOT = '/data/imodoranu/results/'
 
-    MODELS = [
-        # (2, 7),
-        # (3, 8),
-        # (3.1, 8),
-        (3.2, 1),
-    ] # (version, size)
+    if args.MODEL_VERSION_SIZE is None:
+        MODELS = [
+            # '2-7B',
+            # '3-8B',
+            # '3.1-8B',
+            '3.2-1B',
+        ] # (version, size)
+    else:
+        MODELS = args.model_version_size.split(',')
 
     TASKS = [
         # 'hendrycks_math',
@@ -58,12 +63,12 @@ def main():
 
     core_eval_args = []
 
-    for llama_version, llama_size in MODELS:
+    for model_version_size in MODELS:
         for task in TASKS:
-            # wandb_project = f'ionut_clr-adamw_llama{llama_version}-{llama_size}b_{task}'
-            # wandb_project = f'imodoranu_frugal-micro-adam_llama{llama_version}-{llama_size}b_{task}'
-            # wandb_project = f'ionut_torchtune_llama{llama_version}-{llama_size}B_full_ft_multi_gpu'
-            wandb_project = f'ionut_torchtune_llama{llama_version}-{llama_size}B_full_ft_multi_gpu_coswmp'
+            # wandb_project = f'ionut_clr-adamw_llama{model_version_size}_{task}'
+            # wandb_project = f'imodoranu_frugal-micro-adam_llama{model_version_size}_{task}'
+            # wandb_project = f'ionut_torchtune_llama{model_version_size}_full_ft_multi_gpu'
+            wandb_project = f'ionut_torchtune_llama{model_version_size}_full_ft_multi_gpu_coswmp'
 
             api = wandb.Api()
             runs = api.runs(f'{wandb_entity}/{wandb_project}')
