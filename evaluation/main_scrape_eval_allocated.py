@@ -42,7 +42,7 @@ def main():
     # ROOT = '/mnt/beegfs/alistgrp/imodoran/results'
     ROOT = '/data/imodoranu/results/'
 
-    if args.MODEL_VERSION_SIZE is None:
+    if args.model_version_size is None:
         MODELS = [
             # '2-7B',
             # '3-8B',
