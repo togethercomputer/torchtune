@@ -8,7 +8,7 @@ clear
 MODEL_VERSION_SIZE="3.2-1B"
 # MODEL_VERSION_SIZE="3.2-3B"
 
-CONFIG="recipes/configs/imodoranu/llama3_full_ft_multi_gpu.yaml"
+CONFIG="recipes/configs/imodoranu/llama3_fft_multi_gpu.yaml"
 
 #OPTIMIZER=adamw
 #OPTIMIZER=frugal_micro_adam_torch_fsdp2
