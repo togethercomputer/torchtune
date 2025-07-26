@@ -1,0 +1,245 @@
+model_version_size: 3.2-3B
+optimizer_name: adamw
+dataset_split: train_1M
+
+batch_size: 2
+gradient_accumulation_steps: 32
+
+learning_rate: 1e-5
+weight_decay: 0
+
+# Training
+seed: 42
+shuffle: True
+epochs: 1
+max_steps_per_epoch: null
+
+# Environment
+device: cuda
+dtype: bf16
+
+# Memory management
+enable_activation_checkpointing: False  # True reduces memory
+enable_activation_offloading: False  # True reduces memory
+clip_grad_norm: 1
+compile: False  # torch.compile the model + loss, True increases speed + decreases memory
+optimizer_in_bwd: False  # True saves memory. Requires gradient_accumulation_steps=1
+
+extra: wd=${weight_decay}_bs=${batch_size}_gas=${gradient_accumulation_steps}_cg=${clip_grad_norm}_split=${dataset_split} # used as a shortcut in the config
+root_dir: /data/imodoranu/results
+output_dir: ${root_dir}/${wandb.project}/${wandb.group}/${wandb.job_type}/${wandb.name}
+
+model_factory:
+    "3.1-8B":
+        model_component: torchtune.models.llama3_1.llama3_1_8b
+        tokenizer_path: /data/imodoranu/huggingface/Llama-3.1-8B-Instruct/original/tokenizer.model
+        wandb_project: ionut_torchtune_llama3.1-8B_full_ft_multi_gpu_coswmp
+        checkpointer_checkpoint_files: [
+            model-00001-of-00004.safetensors,
+            model-00002-of-00004.safetensors,
+            model-00003-of-00004.safetensors,
+            model-00004-of-00004.safetensors
+        ]
+    "3.2-1B":
+        model_component: torchtune.models.llama3_2.llama3_2_1b
+        tokenizer_path: /data/imodoranu/huggingface/Llama-3.2-1B-Instruct/original/tokenizer.model
+        wandb_project: ionut_torchtune_llama3.2-1B_full_ft_multi_gpu_coswmp
+        checkpointer_checkpoint_files: [
+            model.safetensors
+        ]
+    "3.2-3B":
+        model_component: torchtune.models.llama3_2.llama3_2_3b
+        tokenizer_path: /data/imodoranu/huggingface/Llama-3.2-3B-Instruct/original/tokenizer.model
+        wandb_project: ionut_torchtune_llama3.2-3B_full_ft_multi_gpu_coswmp
+        checkpointer_checkpoint_files: [
+            model-00001-of-00002.safetensors,
+            model-00002-of-00002.safetensors,
+        ]
+
+wandb:
+    project: ${model_factory[${model_version_size}].wandb_project} # will be populated from model_factory
+    entity: ionutmodo
+    job_type: lr=${learning_rate}
+    name: seed=${seed}
+    group: ${wandb.groups.${optimizer_name}}
+    groups:
+        adamw: adamw_${extra}
+        trionosd: trion-osd_it=${optimizer.trionosd.ns_iters}_${extra}_r=${optimizer.trionosd.ns_rank}_ug=${optimizer.trionosd.ns_update_gap}_o=${optimizer.trionosd.ns_optim}_lr=${optimizer.trionosd.ns_lr}_reg=${optimizer.trionosd.ns_reg_U}-${optimizer.trionosd.ns_reg_V}_alrsf=${optimizer.trionosd.adam_lr_scaling_factor}
+        signsgd: sign-sgd_${extra}
+        micro_adam_cuda_fsdp2: micro-adam_${extra}_ng=${optimizer.micro_adam_cuda_fsdp2.num_grads}_k=${optimizer.micro_adam_cuda_fsdp2.density}_qbs=${optimizer.micro_adam_cuda_fsdp2.quant_block_size}_daw=${optimizer.micro_adam_cuda_fsdp2.decay_all_weights}
+        frugal_micro_adam_cuda_fsdp2: frugal-micro-adam-cuda_${extra}_ng=${optimizer.frugal_micro_adam_cuda_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_cuda_fsdp2.density}
+        frugal_micro_adam_torch_fsdp2: frugal-micro-adam-torch_${extra}_ng=${optimizer.frugal_micro_adam_torch_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_torch_fsdp2.density}_norm=${optimizer.frugal_micro_adam_torch_fsdp2.normalization}
+        custom_ema_adamw: custom-ema-adamw_${extra}_sched=${optimizer.custom_ema_adamw.ema_schedule}-${optimizer.custom_ema_adamw.ema_decay}_a=${optimizer.custom_ema_adamw.ema_alpha}
+
+optimizer:
+    adamw:
+        _component_: torch.optim.AdamW
+        lr: ${learning_rate}
+        weight_decay: ${weight_decay}
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        fused: True
+    trionosd:
+        _component_: memory_efficient_optimizers.TrionOSD
+        lr: ${learning_rate}
+        weight_decay: ${weight_decay}
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        mu: 0.95
+        adam_lr_scaling_factor: 100
+        ns_iters: 3
+        ns_rank: 0
+        ns_update_gap: 50
+        ns_optim: raw
+        ns_lr: 1e-3
+        ns_reg_U: 20
+        ns_reg_V: 20
+        max_shape: 64000
+    signsgd:
+        _component_: memory_efficient_optimizers.SignSGD
+        lr: ${learning_rate}
+        weight_decay: ${weight_decay}
+    micro_adam_cuda_fsdp2:
+        _component_: memory_efficient_optimizers.MicroAdamCUDAFSDP2
+        lr: ${learning_rate}
+        weight_decay: ${weight_decay}
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        num_grads: 10
+        density: 0.01
+        quant_block_size: 64
+        decay_all_weights: 1
+    frugal_micro_adam_torch_fsdp2:
+        _component_: memory_efficient_optimizers.FrugalMicroAdamTorchFSDP2
+        lr: ${learning_rate}
+        weight_decay: ${weight_decay}
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        num_grads: 10
+        density: 0.01
+        use_sign_sgd: 1
+        normalization: none
+    frugal_micro_adam_cuda_fsdp2:
+        _component_: memory_efficient_optimizers.FrugalMicroAdamCUDAFSDP2
+        lr: ${learning_rate}
+        weight_decay: ${weight_decay}
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        num_grads: 10
+        density: 0.01
+    custom_ema_adamw:
+        _component_: memory_efficient_optimizers.CustomEmaAdamW
+        lr: ${learning_rate}
+        weight_decay: ${weight_decay}
+        betas:
+            - 0.9
+            - 0.999
+        eps: 1e-8
+        ema_schedule: delayed
+        ema_decay: 10
+        ema_alpha: 0
+
+# Logging
+metric_logger:
+    _component_: torchtune.training.metric_logging.WandBLogger
+    project: ${wandb.project}
+    entity: ionutmodo
+    group: ${wandb.group}
+    job_type: ${wandb.job_type}
+    name: ${wandb.name}
+    log_dir: ${output_dir}/logs
+log_every_n_steps: 1
+log_peak_memory_stats: True
+log_level: INFO  # DEBUG, WARN, etc.
+########## END CUSTOM KEYS
+##################################################
+
+# Tokenizer
+tokenizer:
+    _component_: torchtune.models.llama3.llama3_tokenizer
+    path: ${model_factory[${model_version_size}].tokenizer_path} # will be populated from model_factory
+    max_seq_len: null
+
+model:
+    _component_: ${model_factory[${model_version_size}].model_component} # will be populated from model_factory
+    lora_attn_modules: [ 'q_proj', 'v_proj', 'output_proj' ]
+    apply_lora_to_mlp: True
+    apply_lora_to_output: False
+    lora_rank: 8  # higher increases accuracy and memory
+    lora_alpha: 16  # usually alpha=2*rank
+    lora_dropout: 0.0
+
+checkpointer:
+    _component_: torchtune.training.FullModelHFCheckpointer
+    checkpoint_dir: /data/imodoranu/huggingface/Llama-${model_version_size}-Instruct
+    checkpoint_files: ${model_factory[${model_version_size}].checkpointer_checkpoint_files} # will be populated from model_factory
+    recipe_checkpoint: null
+    output_dir: ${output_dir}
+    model_type: LLAMA3
+resume_from_checkpoint: False
+save_adapter_weights_only: False # new
+
+##################################################
+########## STATIC FIELDS
+
+lr_scheduler:
+    _component_: torchtune.training.lr_schedulers.get_cosine_schedule_with_warmup
+    num_warmup_steps: 195 # 10% of training
+
+# Dataset and Sampler
+dataset:
+    _component_: torchtune.datasets.open_math_instruct_2_dataset
+    packed: False  # True increases speed
+    split: ${dataset_split}
+    column_map:
+        input: problem
+        output: generated_solution
+
+
+run_val_every_n_steps: 100  # Change to an integer to enable validation every N steps
+dataset_val:
+    _component_: ${dataset._component_}
+    split: train_2M[:1%]
+    column_map:
+        input: problem
+        output: generated_solution
+batch_size_val: 1
+
+
+loss:
+    _component_: torchtune.modules.loss.LinearCrossEntropyLoss
+
+# Profiler (disabled)
+profiler:
+    _component_: torchtune.training.setup_torch_profiler
+    enabled: False
+
+    #Output directory of trace artifacts
+    output_dir: ${output_dir}/profiling_outputs
+
+    #`torch.profiler.ProfilerActivity` types to trace
+    cpu: True
+    cuda: True
+
+    #trace options passed to `torch.profiler.profile`
+    profile_memory: False
+    with_stack: False
+    record_shapes: True
+    with_flops: False
+
+    # `torch.profiler.schedule` options:
+    # wait_steps -> wait, warmup_steps -> warmup, active_steps -> active, num_cycles -> repeat
+    wait_steps: 5
+    warmup_steps: 3
+    active_steps: 2
+    num_cycles: 1
