@@ -5,8 +5,8 @@ dataset_split: train_1M
 batch_size: 2
 gradient_accumulation_steps: 32
 
-learning_rate: 1e-5
-weight_decay: 0
+learning_rate: 3e-4
+weight_decay: 0.01
 
 # Training
 seed: 42
@@ -33,7 +33,7 @@ model_factory:
     "3.1-8B":
         model_component: torchtune.models.llama3_1.llama3_1_8b
         tokenizer_path: /data/imodoranu/huggingface/Llama-3.1-8B-Instruct/original/tokenizer.model
-        wandb_project: ionut_torchtune_llama3.1-8B_full_ft_multi_gpu_coswmp
+        wandb_project: ionut_torchtune_llama3.1-8B_peft_multi_gpu_coswmp
         checkpointer_checkpoint_files: [
             model-00001-of-00004.safetensors,
             model-00002-of-00004.safetensors,
@@ -43,14 +43,14 @@ model_factory:
     "3.2-1B":
         model_component: torchtune.models.llama3_2.llama3_2_1b
         tokenizer_path: /data/imodoranu/huggingface/Llama-3.2-1B-Instruct/original/tokenizer.model
-        wandb_project: ionut_torchtune_llama3.2-1B_full_ft_multi_gpu_coswmp
+        wandb_project: ionut_torchtune_llama3.2-1B_peft_multi_gpu_coswmp
         checkpointer_checkpoint_files: [
             model.safetensors
         ]
     "3.2-3B":
         model_component: torchtune.models.llama3_2.llama3_2_3b
         tokenizer_path: /data/imodoranu/huggingface/Llama-3.2-3B-Instruct/original/tokenizer.model
-        wandb_project: ionut_torchtune_llama3.2-3B_full_ft_multi_gpu_coswmp
+        wandb_project: ionut_torchtune_llama3.2-3B_peft_multi_gpu_coswmp
         checkpointer_checkpoint_files: [
             model-00001-of-00002.safetensors,
             model-00002-of-00002.safetensors,
@@ -64,12 +64,12 @@ wandb:
     group: ${wandb.groups.${optimizer_name}}
     groups:
         adamw: adamw_${extra}
-        trionosd: trion-osd_it=${optimizer.trionosd.ns_iters}_${extra}_r=${optimizer.trionosd.ns_rank}_ug=${optimizer.trionosd.ns_update_gap}_o=${optimizer.trionosd.ns_optim}_lr=${optimizer.trionosd.ns_lr}_reg=${optimizer.trionosd.ns_reg_U}-${optimizer.trionosd.ns_reg_V}_alrsf=${optimizer.trionosd.adam_lr_scaling_factor}
-        signsgd: sign-sgd_${extra}
-        micro_adam_cuda_fsdp2: micro-adam_${extra}_ng=${optimizer.micro_adam_cuda_fsdp2.num_grads}_k=${optimizer.micro_adam_cuda_fsdp2.density}_qbs=${optimizer.micro_adam_cuda_fsdp2.quant_block_size}_daw=${optimizer.micro_adam_cuda_fsdp2.decay_all_weights}
-        frugal_micro_adam_cuda_fsdp2: frugal-micro-adam-cuda_${extra}_ng=${optimizer.frugal_micro_adam_cuda_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_cuda_fsdp2.density}
-        frugal_micro_adam_torch_fsdp2: frugal-micro-adam-torch_${extra}_ng=${optimizer.frugal_micro_adam_torch_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_torch_fsdp2.density}_norm=${optimizer.frugal_micro_adam_torch_fsdp2.normalization}
-        custom_ema_adamw: custom-ema-adamw_${extra}_sched=${optimizer.custom_ema_adamw.ema_schedule}-${optimizer.custom_ema_adamw.ema_decay}_a=${optimizer.custom_ema_adamw.ema_alpha}
+#        trionosd: trion-osd_it=${optimizer.trionosd.ns_iters}_${extra}_r=${optimizer.trionosd.ns_rank}_ug=${optimizer.trionosd.ns_update_gap}_o=${optimizer.trionosd.ns_optim}_lr=${optimizer.trionosd.ns_lr}_reg=${optimizer.trionosd.ns_reg_U}-${optimizer.trionosd.ns_reg_V}_alrsf=${optimizer.trionosd.adam_lr_scaling_factor}
+#        signsgd: sign-sgd_${extra}
+#        micro_adam_cuda_fsdp2: micro-adam_${extra}_ng=${optimizer.micro_adam_cuda_fsdp2.num_grads}_k=${optimizer.micro_adam_cuda_fsdp2.density}_qbs=${optimizer.micro_adam_cuda_fsdp2.quant_block_size}_daw=${optimizer.micro_adam_cuda_fsdp2.decay_all_weights}
+#        frugal_micro_adam_cuda_fsdp2: frugal-micro-adam-cuda_${extra}_ng=${optimizer.frugal_micro_adam_cuda_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_cuda_fsdp2.density}
+#        frugal_micro_adam_torch_fsdp2: frugal-micro-adam-torch_${extra}_ng=${optimizer.frugal_micro_adam_torch_fsdp2.num_grads}_k=${optimizer.frugal_micro_adam_torch_fsdp2.density}_norm=${optimizer.frugal_micro_adam_torch_fsdp2.normalization}
+#        custom_ema_adamw: custom-ema-adamw_${extra}_sched=${optimizer.custom_ema_adamw.ema_schedule}-${optimizer.custom_ema_adamw.ema_decay}_a=${optimizer.custom_ema_adamw.ema_alpha}
 
 optimizer:
     adamw:
@@ -81,73 +81,73 @@ optimizer:
             - 0.999
         eps: 1e-8
         fused: True
-    trionosd:
-        _component_: memory_efficient_optimizers.TrionOSD
-        lr: ${learning_rate}
-        weight_decay: ${weight_decay}
-        betas:
-            - 0.9
-            - 0.999
-        eps: 1e-8
-        mu: 0.95
-        adam_lr_scaling_factor: 100
-        ns_iters: 3
-        ns_rank: 0
-        ns_update_gap: 50
-        ns_optim: raw
-        ns_lr: 1e-3
-        ns_reg_U: 20
-        ns_reg_V: 20
-        max_shape: 64000
-    signsgd:
-        _component_: memory_efficient_optimizers.SignSGD
-        lr: ${learning_rate}
-        weight_decay: ${weight_decay}
-    micro_adam_cuda_fsdp2:
-        _component_: memory_efficient_optimizers.MicroAdamCUDAFSDP2
-        lr: ${learning_rate}
-        weight_decay: ${weight_decay}
-        betas:
-            - 0.9
-            - 0.999
-        eps: 1e-8
-        num_grads: 10
-        density: 0.01
-        quant_block_size: 64
-        decay_all_weights: 1
-    frugal_micro_adam_torch_fsdp2:
-        _component_: memory_efficient_optimizers.FrugalMicroAdamTorchFSDP2
-        lr: ${learning_rate}
-        weight_decay: ${weight_decay}
-        betas:
-            - 0.9
-            - 0.999
-        eps: 1e-8
-        num_grads: 10
-        density: 0.01
-        use_sign_sgd: 1
-        normalization: none
-    frugal_micro_adam_cuda_fsdp2:
-        _component_: memory_efficient_optimizers.FrugalMicroAdamCUDAFSDP2
-        lr: ${learning_rate}
-        weight_decay: ${weight_decay}
-        betas:
-            - 0.9
-            - 0.999
-        eps: 1e-8
-        num_grads: 10
-        density: 0.01
-    custom_ema_adamw:
-        _component_: memory_efficient_optimizers.CustomEmaAdamW
-        lr: ${learning_rate}
-        weight_decay: ${weight_decay}
-        betas:
-            - 0.9
-            - 0.999
-        eps: 1e-8
-        ema_schedule: delayed
-        ema_decay: 10
-        ema_alpha: 0
+#    trionosd:
+#        _component_: memory_efficient_optimizers.TrionOSD
+#        lr: ${learning_rate}
+#        weight_decay: ${weight_decay}
+#        betas:
+#            - 0.9
+#            - 0.999
+#        eps: 1e-8
+#        mu: 0.95
+#        adam_lr_scaling_factor: 100
+#        ns_iters: 3
+#        ns_rank: 0
+#        ns_update_gap: 50
+#        ns_optim: raw
+#        ns_lr: 1e-3
+#        ns_reg_U: 20
+#        ns_reg_V: 20
+#        max_shape: 64000
+#    signsgd:
+#        _component_: memory_efficient_optimizers.SignSGD
+#        lr: ${learning_rate}
+#        weight_decay: ${weight_decay}
+#    micro_adam_cuda_fsdp2:
+#        _component_: memory_efficient_optimizers.MicroAdamCUDAFSDP2
+#        lr: ${learning_rate}
+#        weight_decay: ${weight_decay}
+#        betas:
+#            - 0.9
+#            - 0.999
+#        eps: 1e-8
+#        num_grads: 10
+#        density: 0.01
+#        quant_block_size: 64
+#        decay_all_weights: 1
+#    frugal_micro_adam_torch_fsdp2:
+#        _component_: memory_efficient_optimizers.FrugalMicroAdamTorchFSDP2
+#        lr: ${learning_rate}
+#        weight_decay: ${weight_decay}
+#        betas:
+#            - 0.9
+#            - 0.999
+#        eps: 1e-8
+#        num_grads: 10
+#        density: 0.01
+#        use_sign_sgd: 1
+#        normalization: none
+#    frugal_micro_adam_cuda_fsdp2:
+#        _component_: memory_efficient_optimizers.FrugalMicroAdamCUDAFSDP2
+#        lr: ${learning_rate}
+#        weight_decay: ${weight_decay}
+#        betas:
+#            - 0.9
+#            - 0.999
+#        eps: 1e-8
+#        num_grads: 10
+#        density: 0.01
+#    custom_ema_adamw:
+#        _component_: memory_efficient_optimizers.CustomEmaAdamW
+#        lr: ${learning_rate}
+#        weight_decay: ${weight_decay}
+#        betas:
+#            - 0.9
+#            - 0.999
+#        eps: 1e-8
+#        ema_schedule: delayed
+#        ema_decay: 10
+#        ema_alpha: 0
 
 # Logging
 metric_logger:
