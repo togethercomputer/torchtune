@@ -31,7 +31,7 @@ output_dir: ${root_dir}/${wandb.project}/${wandb.group}/${wandb.job_type}/${wand
 
 model_factory:
     "3.1-8B":
-        model_component: torchtune.models.llama3_1.llama3_1_8b
+        model_component: torchtune.models.llama3_1.lora_llama3_1_8b
         tokenizer_path: /data/imodoranu/huggingface/Llama-3.1-8B-Instruct/original/tokenizer.model
         wandb_project: ionut_torchtune_llama3.1-8B_peft_multi_gpu_coswmp
         checkpointer_checkpoint_files: [
@@ -41,14 +41,14 @@ model_factory:
             model-00004-of-00004.safetensors
         ]
     "3.2-1B":
-        model_component: torchtune.models.llama3_2.llama3_2_1b
+        model_component: torchtune.models.llama3_2.lora_llama3_2_1b
         tokenizer_path: /data/imodoranu/huggingface/Llama-3.2-1B-Instruct/original/tokenizer.model
         wandb_project: ionut_torchtune_llama3.2-1B_peft_multi_gpu_coswmp
         checkpointer_checkpoint_files: [
             model.safetensors
         ]
     "3.2-3B":
-        model_component: torchtune.models.llama3_2.llama3_2_3b
+        model_component: torchtune.models.llama3_2.lora_llama3_2_3b
         tokenizer_path: /data/imodoranu/huggingface/Llama-3.2-3B-Instruct/original/tokenizer.model
         wandb_project: ionut_torchtune_llama3.2-3B_peft_multi_gpu_coswmp
         checkpointer_checkpoint_files: [
