@@ -29,6 +29,12 @@ extra: wd=${weight_decay}_bs=${batch_size}_gas=${gradient_accumulation_steps}_cg
 root_dir: /data/imodoranu/results
 output_dir: ${root_dir}/${wandb.project}/${wandb.group}/${wandb.job_type}/${wandb.name}
 
+split_factory: # set certain parameters based on the split: 10% of training for warmup
+    train_1M:
+        lr_sched_warmup: 195
+    train_5M:
+        lr_sched_warmup: 976
+
 model_factory:
     "3.1-8B":
         model_component: torchtune.models.llama3_1.llama3_1_8b
@@ -187,7 +193,7 @@ resume_from_checkpoint: False
 
 lr_scheduler:
     _component_: torchtune.training.lr_schedulers.get_cosine_schedule_with_warmup
-    num_warmup_steps: 195 # 10% of training
+    num_warmup_steps: ${split_factory[${dataset_split}].lr_sched_warmup}
 
 # Dataset and Sampler
 dataset:
