@@ -195,15 +195,20 @@ lr_scheduler:
     _component_: torchtune.training.lr_schedulers.get_cosine_schedule_with_warmup
     num_warmup_steps: ${split_factory[${dataset_split}].lr_sched_warmup}
 
-# Dataset and Sampler
-dataset:
-    _component_: torchtune.datasets.open_math_instruct_2_dataset
-    packed: False  # True increases speed
-    split: ${dataset_split}
-    column_map:
-        input: problem
-        output: generated_solution
+# OpenMathInstruct-2
+#dataset:
+#    _component_: torchtune.datasets.open_math_instruct_2_dataset
+#    packed: False  # True increases speed
+#    split: ${dataset_split}
+#    column_map:
+#        input: problem
+#        output: generated_solution
 
+# OpenThoughts-3
+dataset:
+    _component_: torchtune.datasets.open_thoughts_3_dataset
+    packed: False  # True increases speed
+    split: train
 
 run_val_every_n_steps: 100  # Change to an integer to enable validation every N steps
 dataset_val:
