@@ -24,6 +24,7 @@ from torchtune.datasets._text_completion import (
 )
 from torchtune.datasets._wikitext import wikitext_dataset
 from torchtune.datasets._open_math_instruct_2 import open_math_instruct_2_dataset
+from torchtune.datasets._open_thoughts_3 import open_thoughts_3_dataset
 
 __all__ = [
     "alpaca_dataset",
@@ -47,4 +48,5 @@ __all__ = [
     "multimodal",
 
     "open_math_instruct_2_dataset",
+    "open_thoughts_3_dataset",
 ]
