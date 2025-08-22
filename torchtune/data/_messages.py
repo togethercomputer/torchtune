@@ -519,7 +519,7 @@ class ShareGPTToMessages(Transform):
         Returns:
             list[Message]: A list of messages with "role" and "content" fields.
         """
-        role_map = {"system": "system", "human": "user", "gpt": "assistant"}
+        role_map = {"system": "system", "human": "user", "gpt": "assistant", "user": "user", "assistant": "assistant"}
         messages = []
         if self.new_system_prompt is not None:
             messages.append(
