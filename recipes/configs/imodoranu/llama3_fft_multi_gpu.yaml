@@ -34,6 +34,8 @@ split_factory: # set certain parameters based on the split: 10% of training for 
         lr_sched_warmup: 195
     train_5M:
         lr_sched_warmup: 976
+    train: # Open Thought 3
+        lr_sched_warmup: 1000
 
 model_factory:
     "3.1-8B":
@@ -49,7 +51,8 @@ model_factory:
     "3.2-1B":
         model_component: torchtune.models.llama3_2.llama3_2_1b
         tokenizer_path: /data/imodoranu/huggingface/Llama-3.2-1B-Instruct/original/tokenizer.model
-        wandb_project: ionut_torchtune_llama3.2-1B_full_ft_multi_gpu_coswmp
+        # wandb_project: ionut_torchtune_llama3.2-1B_full_ft_multi_gpu_coswmp
+        wandb_project: ionut_torchtune_OpenThought-3_llama3.2-1B_full_ft_multi_gpu_coswmp
         checkpointer_checkpoint_files: [
             model.safetensors
         ]
@@ -210,14 +213,14 @@ dataset:
     packed: False  # True increases speed
     split: train
 
-run_val_every_n_steps: 100  # Change to an integer to enable validation every N steps
-dataset_val:
-    _component_: ${dataset._component_}
-    split: train_2M[:1%]
-    column_map:
-        input: problem
-        output: generated_solution
-batch_size_val: 1
+#run_val_every_n_steps: 100  # Change to an integer to enable validation every N steps
+#dataset_val:
+#    _component_: ${dataset._component_}
+#    split: train_2M[:1%]
+#    column_map:
+#        input: problem
+#        output: generated_solution
+#batch_size_val: 1
 
 
 loss:
