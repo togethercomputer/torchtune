@@ -52,7 +52,8 @@ model_factory:
         model_component: torchtune.models.llama3_2.llama3_2_1b
         tokenizer_path: /data/imodoranu/huggingface/Llama-3.2-1B-Instruct/original/tokenizer.model
         # wandb_project: ionut_torchtune_llama3.2-1B_full_ft_multi_gpu_coswmp
-        wandb_project: ionut_torchtune_OpenThought-3_llama3.2-1B_full_ft_multi_gpu_coswmp
+        # wandb_project: ionut_torchtune_OpenThought-3_llama3.2-1B_full_ft_multi_gpu_coswmp
+        wandb_project: ionut_torchtune_OpenThought-114k_llama3.2-1B_full_ft_multi_gpu_coswmp
         checkpointer_checkpoint_files: [
             model.safetensors
         ]
@@ -64,7 +65,16 @@ model_factory:
             model-00001-of-00002.safetensors,
             model-00002-of-00002.safetensors,
         ]
-
+    "2.5-7B":
+        model_component: torchtune.models.qwen2_5.qwen2_5_7b_instruct
+        tokenizer_path: /data/imodoranu/huggingface/Qwen2.5-7B-Instruct/vocab.json
+        wandb_project: ionut_torchtune_OpenThought-114k_qwen2.5-7B_full_ft_multi_gpu_coswmp
+        checkpointer_checkpoint_files: [
+            model-00001-of-00004.safetensors,
+            model-00002-of-00004.safetensors,
+            model-00003-of-00004.safetensors,
+            model-00004-of-00004.safetensors,
+        ]
 wandb:
     project: ${model_factory[${model_version_size}].wandb_project} # will be populated from model_factory
     entity: ionutmodo
@@ -177,6 +187,7 @@ log_level: INFO  # DEBUG, WARN, etc.
 tokenizer:
     _component_: torchtune.models.llama3.llama3_tokenizer
     path: ${model_factory[${model_version_size}].tokenizer_path} # will be populated from model_factory
+    merges_file: /data/imodoranu/huggingface/Qwen2.5-7B-Instruct/vocab.json # for Qwen2.5 only!
     max_seq_len: null
 
 model:
@@ -210,6 +221,8 @@ lr_scheduler:
 # OpenThoughts-3
 dataset:
     _component_: torchtune.datasets.open_thoughts_3_dataset
+#    source: open-thoughts/OpenThoughts3-1.2M
+    source: open-thoughts/OpenThoughts-114k
     packed: False  # True increases speed
     split: train
 
