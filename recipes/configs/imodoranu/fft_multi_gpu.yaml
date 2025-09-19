@@ -67,7 +67,7 @@ model_factory:
         ]
     "2.5-7B":
         model_component: torchtune.models.qwen2_5.qwen2_5_7b_instruct
-        tokenizer_path: /data/imodoranu/huggingface/Qwen2.5-7B-Instruct/vocab.json
+        tokenizer_path: /data/imodoranu/huggingface/Qwen-2.5-7B-Instruct/vocab.json
         wandb_project: ionut_torchtune_OpenThought-114k_qwen2.5-7B_full_ft_multi_gpu_coswmp
         checkpointer_checkpoint_files: [
             model-00001-of-00004.safetensors,
@@ -185,21 +185,24 @@ log_level: INFO  # DEBUG, WARN, etc.
 
 # Tokenizer
 tokenizer:
-    _component_: torchtune.models.llama3.llama3_tokenizer
+#    _component_: torchtune.models.llama3.llama3_tokenizer
+    _component_: torchtune.models.qwen2_5.qwen2_5_tokenizer
     path: ${model_factory[${model_version_size}].tokenizer_path} # will be populated from model_factory
-    merges_file: /data/imodoranu/huggingface/Qwen2.5-7B-Instruct/vocab.json # for Qwen2.5 only!
-    max_seq_len: null
+    merges_file: /data/imodoranu/huggingface/Qwen-2.5-7B-Instruct/vocab.json # for Qwen2.5 only!
+    max_seq_len: null # 32768 # for Qwen2.5
 
 model:
     _component_: ${model_factory[${model_version_size}].model_component} # will be populated from model_factory
 
 checkpointer:
     _component_: torchtune.training.FullModelHFCheckpointer
-    checkpoint_dir: /data/imodoranu/huggingface/Llama-${model_version_size}-Instruct
+    # checkpoint_dir: /data/imodoranu/huggingface/Llama-${model_version_size}-Instruct
+    checkpoint_dir: /data/imodoranu/huggingface/Qwen-${model_version_size}-Instruct
     checkpoint_files: ${model_factory[${model_version_size}].checkpointer_checkpoint_files} # will be populated from model_factory
     recipe_checkpoint: null
     output_dir: ${output_dir}
-    model_type: LLAMA3
+#    model_type: LLAMA3
+    model_type: QWEN2
 resume_from_checkpoint: False
 
 ##################################################
@@ -234,7 +237,6 @@ dataset:
 #        input: problem
 #        output: generated_solution
 #batch_size_val: 1
-
 
 loss:
     _component_: torchtune.modules.loss.LinearCrossEntropyLoss
